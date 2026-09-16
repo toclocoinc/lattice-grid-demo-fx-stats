@@ -331,10 +331,17 @@ try {
         verdicts: s.verdicts.map((v) => v.text),
         analyses: s.analyses,
         chartErrors: Array.from(document.querySelectorAll('.stats-card .chart-error')).map((e) => e.textContent),
-        plots: Array.from(document.querySelectorAll('.stats-plot')).map((box) => ({
-          marks: box.querySelectorAll('rect,circle,path,line,polyline').length,
-          canvas: box.querySelectorAll('canvas').length,
-        })),
+        plots: Array.from(document.querySelectorAll('.stats-plot')).map((box) => {
+          const paths = Array.from(box.querySelectorAll('path')).map((p) => (p.getAttribute('d') || '').trim());
+          return {
+            marks: box.querySelectorAll('rect,circle,path,line,polyline').length,
+            canvas: box.querySelectorAll('canvas').length,
+            paths: paths.length,
+            emptyPaths: paths.filter((d) => !d).length,
+            longestD: Math.max(0, ...paths.map((d) => d.length)),
+            dataMarks: box.querySelectorAll('circle,polyline,rect').length,
+          };
+        }),
         cards: Array.from(document.querySelectorAll('.stats-card')).map((c) => c.dataset.analysis),
       };
     })()`);
@@ -405,34 +412,81 @@ try {
   await shoot('rates');
 
   /* The charts must have plotted values, not empty axes. */
+  /*
+   * What a chart actually DREW, not merely what it produced.
+   *
+   * The first version of this check counted every `rect,circle,path,line,text`
+   * in the box and asked for more than two. Both line charts on the published
+   * page were blank and it passed anyway: the two axis rectangles and six tick
+   * labels cleared the bar on their own, and the single `<path>` the line
+   * should have been was present with an EMPTY `d`. `chart.data()` was no help
+   * either — it reported 380 points each carrying a `y`, because the binding
+   * was fine and only the rendering was empty.
+   *
+   * So geometry is measured now, separately from furniture: the marks a chart
+   * draws its DATA with. For a path-drawn chart that is the length of the `d`
+   * attribute, which is nought on an empty path and thousands of characters on
+   * a real line.
+   */
   const chartData = await evaluate(`Array.from(document.querySelectorAll('.chart-box')).map((box, i) => {
     const chart = window.__fxDemo.charts[i];
-    const marks = box.querySelectorAll('rect,circle,path,line,polyline,text').length;
-    const canvas = box.querySelectorAll('canvas').length;
+    const paths = Array.from(box.querySelectorAll('path')).map((p) => (p.getAttribute('d') || '').trim());
+    /* The marks a chart draws its data with, as opposed to the two axis
+       rectangles: circles, polylines and the cell/bar rectangles. The axis
+       frame is at most a couple of rects, so anything beyond that is data. */
+    const dataMarks = box.querySelectorAll('circle,polyline,rect').length;
+    const info = {
+      i,
+      type: (window.__fxDemo.chartTypes || [])[i] || null,
+      marks: box.querySelectorAll('rect,circle,path,line,polyline,text').length,
+      canvas: box.querySelectorAll('canvas').length,
+      paths: paths.length,
+      emptyPaths: paths.filter((d) => !d).length,
+      longestD: Math.max(0, ...paths.map((d) => d.length)),
+      dataMarks,
+    };
     try {
       const d = chart.data();
       const series = d.series || [];
-      return {
-        i, kind: d.kind, series: series.length, marks, canvas,
+      return { ...info, kind: d.kind, series: series.length,
         points: series.reduce((a, s) => a + (s.points || []).length, 0),
-        withValue: series.reduce((a, s) => a + (s.points || []).filter((p) => p && p.y != null).length, 0),
-      };
-    } catch (e) { return { i, marks, canvas, error: String(e.message) }; }
+        withValue: series.reduce((a, s) => a + (s.points || []).filter((p) => p && p.y != null).length, 0) };
+    } catch (e) { return { ...info, error: String(e.message) }; }
   })`);
+
+  /* A path this short is a zero line or a tick, not a series of 7,000 days. */
+  const REAL_GEOMETRY = 64;
+
   for (const c of chartData) {
     check(!c.error, `saved copy: chart ${c.i} reported its data`, c.error);
     if (c.error) continue;
     check(c.points > 0, `saved copy: chart ${c.i} bound points`, `${c.points} points`);
+    /* A correlogram is a matrix rather than a series of measures, so its points
+       carry no `y`; it draws its data as cell rectangles instead of a path. */
+    if (c.type === 'correlogram' || c.kind === 'matrix' || c.series === 0 || c.withValue === 0) {
+      check(c.dataMarks > 4, `saved copy: chart ${c.i} drew data marks`, `${c.dataMarks} data marks, type ${c.type}`);
+      continue;
+    }
+    check(c.withValue > 0, `saved copy: chart ${c.i} plotted values rather than empty axes`, `${c.withValue} carry a measure`);
+    check(c.emptyPaths === 0, `saved copy: chart ${c.i} left no empty path behind`, `${c.emptyPaths} of ${c.paths} paths have no d`);
+    check(
+      c.longestD >= REAL_GEOMETRY || c.dataMarks > 2 || c.canvas > 0,
+      `saved copy: chart ${c.i} drew real geometry for its ${c.withValue} values`,
+      `longest path d ${c.longestD} chars, ${c.dataMarks} data marks, ${c.canvas} canvas`,
+    );
     /*
-     * A correlogram is a matrix rather than a series of measures, so its points
-     * carry no `y` and the value check is on what it actually drew. Every other
-     * chart here must have a measure on its points AND have drawn.
+     * A time series must be on a continuous axis. A band scale of thousands of
+     * categories is what produced the empty line in the first place, and it
+     * also emits one tick label per row — 7,099 text nodes on this data. A
+     * histogram reports `category` too, because it bins its own measure and has
+     * no x column, so the rule is only for the charts bound to an x column.
      */
-    if (c.kind === 'matrix' || c.series === 0 || c.withValue === 0) {
-      check(c.marks > 2, `saved copy: chart ${c.i} drew marks`, `${c.marks} marks, kind ${c.kind}`);
-    } else {
-      check(c.withValue > 0, `saved copy: chart ${c.i} plotted values rather than empty axes`, `${c.withValue} carry a measure`);
-      check(c.marks > 2 || c.canvas > 0, `saved copy: chart ${c.i} drew marks`, `${c.marks} marks, ${c.canvas} canvas`);
+    if (['line', 'area', 'step', 'scatter'].includes(c.type)) {
+      check(
+        c.kind !== 'category',
+        `saved copy: chart ${c.i} (${c.type}) is on a continuous axis, not a band scale of ${c.points} categories`,
+        `kind ${c.kind}, ${c.points} points`,
+      );
     }
   }
 
@@ -494,7 +548,16 @@ try {
     check(state.cards.length === 6, `${tag}: all six analyses were built`, state.cards.join(', '));
     check(state.verdicts.length >= 6, `${tag}: the verdict panel wrote its sentences`, `${state.verdicts.length}`);
     for (const [i, plot] of state.plots.entries()) {
-      check(plot.marks > 2 || plot.canvas > 0, `${tag}: plot ${i} drew something`, `${plot.marks} marks, ${plot.canvas} canvas`);
+      /* Geometry, not furniture — the same distinction the chart-box check
+         makes, for the same reason: axis ticks and labels are not a drawing of
+         the data. Every plot here is a path chart or a mark chart, so one of
+         the two must be real. */
+      check(
+        plot.longestD >= 64 || plot.dataMarks > 2 || plot.canvas > 0,
+        `${tag}: plot ${i} drew real geometry`,
+        `longest path d ${plot.longestD} chars, ${plot.dataMarks} data marks, ${plot.canvas} canvas`,
+      );
+      check(plot.emptyPaths === 0, `${tag}: plot ${i} left no empty path behind`, `${plot.emptyPaths} of ${plot.paths}`);
     }
 
     /* -------- 1: the distribution -------- */

@@ -59,12 +59,31 @@ export function rangeFrom(range) {
 function rateColumns() {
   const columns = [
     {
+      /*
+       * A real date column, over the epoch-millisecond field.
+       *
+       * It was `field: 'date'` with no `type` — the 'YYYY-MM-DD' string — and
+       * that was a modelling mistake with a visible consequence: on this grid
+       * the charts module bound it as a CATEGORY axis of 7,094 distinct
+       * strings, and a `line` chart on a band scale that wide draws an empty
+       * path. Both line charts were blank on the published page. See finding
+       * F-FX-6, which is about the silence rather than the binding: a declared
+       * date is the right way to model a date whatever the chart does with it.
+       *
+       * The row keeps its `date` string as well — it is the row key, the
+       * anomaly label and the block boundary — so nothing else moves.
+       */
       id: 'date',
-      field: 'date',
+      field: 't',
       title: 'Date',
+      type: 'date',
       width: 116,
       pinned: 'left',
       sort: 'desc',
+      format: (params) =>
+        typeof params.value === 'number' && Number.isFinite(params.value)
+          ? new Date(params.value).toISOString().slice(0, 10)
+          : '',
     },
   ];
   for (const pair of PAIRS) {
@@ -197,6 +216,24 @@ export function buildDashboard({
     chartBoxes.push(box);
   }
   root.append(chartHost);
+
+  /*
+   * The correlogram's row labels run off the left of their box. That is finding
+   * F-FX-8 and it is left as it happens rather than hidden: the chart writes
+   * each row label at `plot.left - 4` and never adds the label's width to
+   * `plot.left`, so the margin is a constant ~44px whatever the labels say and
+   * whatever the box is. A wider box does not help — measured at 461px and at
+   * 1,100px, the overflow is the same 39px — and shortening the titles until
+   * they happened to fit would be hiding a defect rather than reporting one.
+   */
+  const chartNote = el(
+    'p',
+    'chart-note',
+    'The correlogram’s row labels are clipped on the left: in 1.62.1 a correlogram places them ' +
+      'outside its plot area and never reserves room for them, so the margin does not grow with the ' +
+      'label. That is finding F-FX-8 in the README, left visible rather than worked around.',
+  );
+  root.append(chartNote);
 
   /* ---------------- the controls ---------------- */
 
@@ -494,6 +531,11 @@ export function buildDashboard({
         legend: false,
       },
     ];
+
+    /* The types, in the order the charts were built. A chart does not hand its
+       own type back, and the checks need to know which of these is a time
+       series and which is a distribution or a matrix. */
+    built.chartTypes = specs.map((spec) => spec.type);
 
     specs.forEach((spec, index) => {
       try {

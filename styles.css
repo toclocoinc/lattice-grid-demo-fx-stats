@@ -504,3 +504,11 @@ body {
   color: #8a94a6;
   font-style: italic;
 }
+
+.chart-note {
+  margin: 0.4rem 0 0.9rem;
+  color: #8a94a6;
+  font-size: 0.8rem;
+  line-height: 1.5;
+  max-width: 70rem;
+}
