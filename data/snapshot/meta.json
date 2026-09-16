@@ -1,0 +1,22 @@
+{
+  "fetchedAt": "2026-09-16T21:00:24.193Z",
+  "fetchedAtMs": 1789592424193,
+  "seconds": 1.1,
+  "bytes": 475100,
+  "days": 7094,
+  "incompleteDays": 0,
+  "base": "EUR",
+  "symbols": [
+    "CHF",
+    "GBP",
+    "JPY",
+    "USD"
+  ],
+  "oldest": "1999-01-04",
+  "newest": "2026-09-16",
+  "url": "https://api.frankfurter.dev/v1/1999-01-04..?base=EUR&symbols=USD,GBP,JPY,CHF",
+  "source": "European Central Bank euro foreign exchange reference rates, served by Frankfurter",
+  "sourceUrl": "https://frankfurter.dev",
+  "ecbUrl": "https://www.ecb.europa.eu/stats/policy_and_exchange_rates/euro_reference_exchange_rates/html/index.en.html",
+  "licence": "The reference rates are published by the European Central Bank and may be reused with the source acknowledged. Frankfurter is open source and free to use."
+}

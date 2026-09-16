@@ -1,0 +1,75 @@
+name: Refresh the saved copy
+
+# The page opens the saved copy in data/snapshot/ and then asks the API only
+# for the days published since it was taken. That top-up is cheap while the copy
+# is current and gets steadily less so as it ages, so the copy is refreshed
+# every night: one request, the whole history, written to disk exactly as the
+# API sent it.
+#
+# The European Central Bank publishes one set of reference rates each TARGET
+# working day at about 16:00 Central European Time. So on a weekday there is a
+# new day to commit and at a weekend there is not, and nothing is committed when
+# nothing has changed.
+#
+# The publishing workflow is then asked to run, because a push made with the
+# workflow's own token does not start other workflows by itself.
+
+on:
+  schedule:
+    # 04:23 UTC: well after the ECB's afternoon publication, and off the hour so
+    # it is not queued behind everyone else's midnight jobs.
+    - cron: '23 4 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: write
+
+# One refresh at a time. A run already under way is left to finish.
+concurrency:
+  group: snapshot
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the demo
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      # The builder runs only the demo's own source and makes exactly one
+      # request, so nothing is installed. A request that fails, or an answer
+      # holding no rates at all, fails the run and the copy already committed
+      # stays exactly as it is.
+      - name: Take a fresh copy from the Frankfurter API
+        run: node tools/build-snapshot.mjs
+
+      - name: Commit it when it has changed
+        id: commit
+        run: |
+          git add -A data/snapshot
+          # meta.json carries the time it was taken, so it changes on every run.
+          # The rates are what matter: if only the timestamp moved, nothing is
+          # committed and the history stays readable.
+          if git diff --cached --quiet -- ':!data/snapshot/meta.json'; then
+            echo "The saved copy is unchanged."
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            git checkout -- data/snapshot
+            exit 0
+          fi
+          git config user.name "Lattice Demos"
+          git config user.email "tony@demandflow.com"
+          git commit -m "Refresh the saved copy ($(date -u +%Y-%m-%d))"
+          git push
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+
+      - name: Publish the demo
+        if: steps.commit.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run pages.yml --ref main

@@ -1,0 +1,19 @@
+{
+  "name": "lattice-grid-demo-fx-stats",
+  "version": "1.0.0",
+  "description": "The statistics edition of the currency dashboard: return distributions, volatility clustering, autocorrelation, stationarity, cross-pair regression and anomalies, all computed by the grid.",
+  "type": "module",
+  "private": true,
+  "license": "MIT",
+  "scripts": {
+    "start": "node tools/serve.mjs",
+    "snapshot": "node tools/build-snapshot.mjs",
+    "verify": "node tools/verify.mjs"
+  },
+  "dependencies": {
+    "@toclocoinc/lattice-grid": "^1.62.1"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}
