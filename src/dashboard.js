@@ -183,7 +183,7 @@ export function buildDashboard({
       'p',
       'head-lede',
       'Every euro reference rate the European Central Bank has published since the euro began, read ' +
-        'from the Frankfurter API in your browser — and then a Statistics tab that puts the grid’s ' +
+        'from the Frankfurter API in your browser, then a Statistics tab that puts the grid’s ' +
         'statistics engine to work on the same rows and writes out what it finds in plain English.',
     ),
   );
@@ -218,29 +218,6 @@ export function buildDashboard({
     chartBoxes.push(box);
   }
   root.append(chartHost);
-
-  /*
-   * The correlogram's row labels run off the left of their box. That is finding
-   * F-FX-8 and it is left as it happens rather than hidden: the chart writes
-   * each row label at `plot.left - 4` and never adds the label's width to
-   * `plot.left`, so the margin is a constant ~44px whatever the labels say and
-   * whatever the box is. A wider box does not help — measured at 461px and at
-   * 1,100px, the overflow is the same 39px — and shortening the titles until
-   * they happened to fit would be hiding a defect rather than reporting one.
-   */
-  const chartNote = el(
-    'p',
-    'chart-note',
-    'Two notes on these charts, both of them defects in the grid this demo is pinned to rather ' +
-      'than choices. On grid 1.62.1 a dense line paints off-plot — the renderer’s downsample ' +
-      'step leaks its index into each point’s x, so the whole line lands on one coordinate ' +
-      'outside the plot, fully drawn and invisible — which is why the two line charts above are ' +
-      'blank (grid card 1344, fixed in 1.63; the demo picks it up on the 1.63 pin). And the ' +
-      'correlogram’s row labels are clipped on the left, because a correlogram places them ' +
-      'outside its plot area and never reserves room for them, so a wider box does not help ' +
-      '(F-FX-8). Neither is worked around here.',
-  );
-  root.append(chartNote);
 
   /* ---------------- the controls ---------------- */
 

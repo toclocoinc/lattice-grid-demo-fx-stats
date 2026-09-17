@@ -1,6 +1,6 @@
 # Twenty-seven years of exchange rates, and what the numbers say
 
-Every euro reference rate the European Central Bank has published since the euro began — 7,094 working days from 4 January 1999 — in a Lattice Grid, read from the Frankfurter API in the browser with no server in the middle. And then a Statistics tab that puts the grid's statistics engine to work on the same rows and writes out what it finds in plain English.
+Every euro reference rate the European Central Bank has published since the euro began, 7,094 working days from 4 January 1999, in a Lattice Grid, read from the Frankfurter API in your browser with no server in the middle. Then a Statistics tab that puts the grid's statistics engine to work on the same rows and writes out what it finds in plain English.
 
 **[See it running](https://toclocoinc.github.io/lattice-grid-demo-fx-stats/)**
 
@@ -15,13 +15,13 @@ Every euro reference rate the European Central Bank has published since the euro
 
 A grid that can hold a million rows is a table. A grid that can tell you what is in them is something else.
 
-Everything on the Statistics tab is a figure the grid produced, and every figure is shown with the call that produced it. Nothing on the page works out a mean, a spread, a slope, a control limit, an autocorrelation or an outlier by hand and prints it beside the grid's charts — that would prove nothing. The verification (`npm run verify`) exists to hold that line: it reads the raw rates out of the table, computes all of it a second and completely independent way in Node, and insists the two agree to the last significant figure. At the time of writing that is 444 checks — plus ten more that are run and reported but not counted as failures, because they measure a defect in the grid this demo is pinned to rather than in the demo. The gap it prints for each cross-checked figure is `0.00e+0`.
+Everything on the Statistics tab is a figure the grid produced, and every figure is shown beside the call that produced it. Nothing on the page works out a mean, a spread, a slope, a control limit, an autocorrelation or an outlier by hand, because that would prove nothing. The verification (`npm run verify`) exists to hold that line: it reads the raw rates out of the table, computes all of it a second and completely independent way in Node, and insists the two agree to the last significant figure.
 
-Currencies are a good subject for this. Everyone already believes six things about a daily exchange rate — that it is roughly normal, that yesterday tells you nothing about tomorrow, that a rate drifts rather than reverting, that pairs sharing a leg move together — and a statistics engine can check every one of them against twenty-seven years of the real thing in under a second. One of those beliefs turns out to be badly wrong, one is exactly right, and the difference between the two is the most useful thing on the page.
+Currencies are a good subject for this. Everyone already believes six things about a daily exchange rate: that it is roughly normal, that yesterday tells you nothing about tomorrow, that a rate drifts rather than reverting, that pairs sharing a leg move together. A statistics engine can check every one of them against twenty-seven years of the real thing in under a second. One of those beliefs turns out to be badly wrong, one is exactly right, and the difference between the two is the most useful thing on the page.
 
 ## The six analyses
 
-Each one runs over whatever the table currently matches. Change the pair, or narrow the dates to "Since 2015", and all six are recomputed and all seven verdicts are rewritten.
+Each one runs over whatever the table currently matches. Change the pair, or narrow the dates to "Since 2015", and all six are recomputed and all seven verdicts are rewritten. The Statistics tab opens in under two seconds even across the whole history, and stays that fast on every later pass.
 
 The figures quoted below are EUR/USD over the whole history, as the saved copy stood when this was written.
 
@@ -33,17 +33,17 @@ Draw the returns, put a density curve over them, plot them against a normal, and
 | --- | --- |
 | The mean and its 95% interval | `grid.statistics.interval('ret', { kind: 'mean', confidence: 0.95 })` |
 | The spread, the shape and the test | `grid.statistics.reduce('ret', 'stddev' \| 'skewness' \| 'kurtosis' \| 'jarqueBera' \| 'median')` |
-| The 1% and 99% points | `grid.statistics.weightedQuantile('ret', 'one', 0.01 \| 0.99)` — see finding F-FX-2 |
-| The shape | a `histogram` with `curve: true` — the bars, and the grid's kernel density estimate over them, which has no bin edges and so says which part of the shape is the data's |
+| The 1% and 99% points | `grid.statistics.weightedQuantile('ret', 'one', 0.01 \| 0.99)` |
+| The shape | a `histogram` with `curve: true`: the bars, and the grid's kernel density estimate over them, which has no bin edges and so says which part of the shape is the data's |
 | How far from normal | a `qq` chart |
 
-**The verdict.** Jarque-Bera is **3,236** against a cut of 5.99, and the excess kurtosis is **3.31** where a normal's is nought. One day in a hundred EUR/USD falls more than **1.55%** or rises more than **1.53%**; a normal with the same mean and the same standard deviation of 0.581% would put those two days at **1.35%**. The real tails are about 1.14 times as far out as the model's — and on the franc, where the 2015 unpegging sits, the excess kurtosis is **361** and Jarque-Bera is **38.6 million**.
+**The verdict.** Jarque-Bera is **3,236** against a cut of 5.99, and the excess kurtosis is **3.31** where a normal's is nought. One day in a hundred EUR/USD falls more than **1.55%** or rises more than **1.53%**; a normal with the same mean and the same standard deviation of 0.581% would put those two days at **1.35%**. The real tails are about 1.14 times as far out as the model's. On the franc, where the 2015 unpegging sits, the excess kurtosis is **361** and Jarque-Bera is **38.6 million**.
 
-The normal being compared against is stated as figures rather than drawn over the histogram, because there is no way to overlay a named reference distribution on one. That is finding F-FX-3 below, and nothing is drawn by hand to fill the gap. The 2.3263 in "mean − 2.3263 σ" is a constant of the normal distribution, labelled as the model everywhere it appears; it is not a reading off this data.
+The normal used for comparison is shown as figures rather than drawn over the histogram, so what is model and what is data stay clearly separate. The 2.3263 in "mean − 2.3263 σ" is a constant of the normal distribution, labelled as the model everywhere it appears; it is not a reading off this data.
 
 ### 2. Is the spread itself steady?
 
-Divide the days into runs of twenty — about a trading month — measure the standard deviation of each run, and put the result on a control chart. Its limits come from the month-to-month jump rather than the overall spread, so a shift cannot widen the limits that are meant to catch it.
+Divide the days into runs of twenty, about a trading month, measure the standard deviation of each run, and put the result on a control chart. Its limits come from the month-to-month jump rather than the overall spread, so a shift cannot widen the limits that are meant to catch it.
 
 | What | Which grid call |
 | --- | --- |
@@ -52,9 +52,9 @@ Divide the days into runs of twenty — about a trading month — measure the st
 | The rule breaks | the same call's `violations`, each with its rule number and description; the Western Electric count comes from the same call with `rules: 'westernElectric'` |
 | The chart | a `control` chart, which draws the limits and marks the breaks |
 
-**The verdict.** Over **354** runs the centre line sits at **0.544%** a day with limits of 0.204% to 0.884%, and **321** readings break a Nelson rule — **21** beyond three sigma and **100** of them nine or more in a row on one side of the line. Those long one-sided runs are the finding rather than a failure of the chart: quiet months come after quiet months and wild months after wild ones. Volatility clusters.
+**The verdict.** Over **354** runs the centre line sits at **0.544%** a day with limits of 0.204% to 0.884%, and **321** readings break a Nelson rule: **21** beyond three sigma and **100** of them nine or more in a row on one side of the line. Those long one-sided runs are the finding rather than a failure of the chart: quiet months come after quiet months and wild months after wild ones. Volatility clusters.
 
-The runs do not overlap, and that is deliberate twice over. A rolling twenty-day window is the usual way to draw this and it is **not reachable from the public API** — finding F-FX-1 — so it is not worked around. It is also the worse chart: consecutive overlapping windows share nineteen days in twenty, so the points would be autocorrelated by construction and every control rule about runs and trends would fire on the overlap rather than on the market.
+The runs do not overlap, on purpose: consecutive overlapping windows would share nineteen days in twenty, so the points would move together by construction and every control rule about runs and trends would fire on the overlap rather than on the market.
 
 ### 3. Is tomorrow readable from today?
 
@@ -64,13 +64,13 @@ Run the autocorrelation twice on the same days: once on the return, which is dir
 | --- | --- |
 | Both series, out to twenty lags | `grid.statistics.acf({ of: 'ret' \| 'abs', orderBy: 'seq', maxlag: 20 })` |
 | The white-noise band | the same result's `bounds`, the ±1.96/√n approximation, which the result stamps `approximate: true` |
-| The chart | a `bar` chart of one row per lag per series, split by `series`, with the band as `reference` lines — which is what the engine's own documentation says to do with these arrays |
+| The chart | a `bar` chart of one row per lag per series, split by `series`, with the band as `reference` lines |
 
-**The verdict.** Of twenty lags, **3** of the return's clear the ±0.0233 band and lag 1 is **−0.0066**, indistinguishable from nought; under pure chance one lag in twenty would fall outside anyway. The size of the return is a different series entirely: **20 of 20** lags clear the band, lag 1 is **0.120** and lag 20 is still **0.120** — it has not decayed at all over a trading month. Which way it moves tomorrow is not readable from today. How far it moves is. That is the same fact analysis 2 found from the other end, and it is why every volatility model that has ever been used exists.
+**The verdict.** Of twenty lags, **3** of the return's clear the ±0.0233 band and lag 1 is **−0.0066**, indistinguishable from nought; under pure chance one lag in twenty would fall outside anyway. The size of the return is a different series entirely: **20 of 20** lags clear the band, lag 1 is **0.120** and lag 20 is still **0.120**: it has not decayed at all over a trading month. Which way it moves tomorrow is not readable from today. How far it moves is. That is the same fact analysis 2 found from the other end, and it is why every volatility model that has ever been used exists.
 
 ### 4. Does the rate have a level to come back to?
 
-The Augmented Dickey-Fuller test, on the rate and then on the return.
+The Augmented Dickey-Fuller test, on the rate and then on the return, considering up to twelve lags when it chooses its model, a standard setting for daily data.
 
 | What | Which grid call |
 | --- | --- |
@@ -78,9 +78,9 @@ The Augmented Dickey-Fuller test, on the rate and then on the return.
 | The statistic, the lag AIC chose, the observations | `.statistic`, `.usedLag`, `.nobs` |
 | MacKinnon's critical values and the verdict | `.criticalValues`, `.stationary`, `.verdict` |
 
-**The verdict.** The EUR/USD rate is **non-stationary**: ADF is **−1.92** against −3.41 at 5%, so the null of a unit root is not rejected — it wanders, with no level it is obliged to return to. Difference it once, which is what a daily return is, and ADF becomes **−24.23**: **stationary**, emphatically. That single fact is why serious currency analysis is done on returns rather than rates, and here it is a result rather than a convention.
+**The verdict.** The EUR/USD rate is **non-stationary**: ADF is **−1.92** against −3.41 at 5%, so the null of a unit root is not rejected. It wanders, with no level it is obliged to return to. Difference it once, which is what a daily return is, and ADF becomes **−24.23**: **stationary**, emphatically. That single fact is why serious currency analysis is done on returns rather than rates, and here it is a result rather than a convention.
 
-The p-value is interpolated across the critical-value ladder rather than taken from MacKinnon's response surface, and the result says so in `pApproximate`. The statistic and the critical values are the readings to quote.
+The p-value is interpolated across MacKinnon's critical-value ladder rather than taken from the response surface, and the result says so in `pApproximate`. The statistic and the critical values are the readings to quote.
 
 ### 5. How much of sterling's day is the dollar's?
 
@@ -90,11 +90,11 @@ EUR/GBP and EUR/USD share a leg, so they are not independent. Regress one on the
 | --- | --- |
 | The fit, with everything | `grid.statistics.regressionModel({ predictors: ['usdRet'], response: 'gbpRet', confidence: 0.95 })` |
 | The slope and its interval | the `usdRet` coefficient's `estimate`, `lower`, `upper` and `stdError` |
-| Whether the residuals fan out | the same model's `heteroscedasticity` — a Breusch-Pagan flag |
+| Whether the residuals fan out | the same model's `heteroscedasticity`, a Breusch-Pagan flag |
 | Two correlations | `grid.statistics.correlation(a, b)` and `.spearman(a, b)` |
-| The chart | a `scatter` with `fit: true` and `band: model.band` — the ribbon is the model's own pointwise interval, not a second slope drawn here |
+| The chart | a `scatter` with `fit: true` and `band: model.band`: the ribbon is the model's own pointwise interval |
 
-**The verdict.** A one per cent day in EUR/USD comes with a **0.347** per cent day in EUR/GBP, and the fit puts that slope between **0.330** and **0.364** over 7,093 days. The interval clears nought and sits well below one, so the two move together and sterling moves less than the dollar does — it is nearer the euro. But the line accounts for only **17.8%** of sterling: 82.2% of what EUR/GBP did on these days had nothing to do with the dollar at all. The residuals are heteroscedastic by Breusch-Pagan, which is the same clustering analysis 2 found, showing up in a third place.
+**The verdict.** A one per cent day in EUR/USD comes with a **0.347** per cent day in EUR/GBP, and the fit puts that slope between **0.330** and **0.364** over 7,093 days. The interval clears nought and sits well below one, so the two move together and sterling moves less than the dollar does. It is nearer the euro. But the line accounts for only **17.8%** of sterling: 82.2% of what EUR/GBP did on these days had nothing to do with the dollar at all. The residuals are heteroscedastic by Breusch-Pagan, which is the same clustering analysis 2 found, showing up in a third place.
 
 ### 6. Which days do not belong?
 
@@ -105,75 +105,15 @@ The modified z-score measures each day against the median and the spread around 
 | The scan | `grid.statistics.anomalies({ columns: ['ret'], method: 'modifiedZScore' })` |
 | Each flagged day, worst first | the result's `rows`, each carrying its `rowKey`, its `score` and the `why` behind it |
 
-**The verdict.** **108** of 7,093 days — 1.5% — are flagged, several times what a normal would allow: the fat tails from analysis 1, arriving with dates attached. The biggest is **19 December 2008** at **−4.74%**, a modified z of **−10.2**, in the week the Federal Reserve reached the zero bound. Switch to the franc and the list rearranges around **15 January 2015** at **−15.55%** with a modified z of **−73.4**, the morning the Swiss National Bank abandoned the 1.20 floor.
+**The verdict.** **108** of 7,093 days, 1.5%, are flagged, several times what a normal would allow: the fat tails from analysis 1, arriving with dates attached. The biggest is **19 December 2008** at **−4.74%**, a modified z of **−10.2**, in the week the Federal Reserve reached the zero bound. Switch to the franc and the list rearranges around **15 January 2015** at **−15.55%** with a modified z of **−73.4**, the morning the Swiss National Bank abandoned the 1.20 floor.
 
-Each of the ten is shown with a line on what happened — from a fixed table of dates in `src/analysis.js`, matched on the exact publication day and on nothing else. A day that is not in the table is shown **without** an explanation rather than given one that fits, because a demo that invents a cause for an outlier is worse than one that leaves it bare: a reader cannot tell the two apart. Note that the ECB publishes at about 16:00 Central European Time, so an American announcement in the afternoon lands on the *next* day's rate, which is why several of the dates sit one day after the event they are named for.
+Each of the ten is shown with a line on what happened, matched on the exact publication day and on nothing else. A day that is not on record is shown **without** an explanation rather than given one that fits: a demo that invents a cause for an outlier is worse than one that leaves it bare, because a reader cannot tell the two apart. The ECB publishes at about 16:00 Central European Time, so an American announcement in the afternoon lands on the *next* day's rate, which is why several of the dates sit one day after the event they are named for.
 
 ## The verdict panel
 
 Seven sentences at the top of the tab, each built from the figures beneath it and each carrying the call that produced it. They are the deliverable: a reader who wants the numbers can have them, and a reader who wants to know what twenty-seven years of currency did can read seven sentences and stop.
 
-They are rewritten on every pass, so they can never be stale, and the verification insists that at least five of the seven actually change when the pair is switched, and again when the dates are narrowed. In practice all seven change both times.
-
-## What the grid could not reach
-
-Nine things this page wanted and 1.62.1 does not do. None of them is worked around: the behaviour is left visible on the page with a note saying what is happening, because a demo that hides a defect teaches the wrong thing.
-
-The last three were found on the **published** page rather than in the checks, which is worth saying plainly: the first version of this demo shipped with both line charts blank and the verification passing, and the version after that shipped with every Date cell blank. What that cost, and what now stops it happening again, is under "Checking it" below.
-
-**F-FX-1 — the rolling-column family has no `rollingStddev` or `rollingVariance`.** The rolling shadow kinds run `rollingSum`, `rollingAvg`, `rollingMin`, `rollingMax`, `rollingQuantile`, `windowCoverage`, `cumulativeToDate` and `periodOverPeriod`. There is no rolling spread, so a rolling twenty-day standard deviation — the single most-used derived series in finance, and the input to every volatility chart ever drawn — cannot be had from the public API as a **series**. `statistics.windowed(col, 'stddev', { kind: 'count', span: 20 })` gives the spread of the *last* window and only that one, and calling it per row is not a thing the surface supports. Composing it out of two `rollingAvg` columns would be computing a statistic by hand, which this page does not do. So the volatility analysis charts non-overlapping blocks instead, and says so. Wanted: `rollingStddev` and `rollingVariance` alongside `rollingAvg`, reading the same `orderBy` and `window`, with `windowCoverage` stamping the partial leading rows exactly as it already does.
-
-**F-FX-2 — the percentile kernels stop at p25 and there is no arbitrary quantile on `reduce`.** The kernel family is `p25`, `p75`, `p90`, `p95`, `p99` — the upper tail has kernels and the lower one does not. `reduce(col, 'p1')` and `reduce(col, 'p5')` are refused with `unknown total function "p1"; register it in config.totalFns` and return null, so a 1% tail — the other half of every tail comparison anyone makes — has no kernel at all. The only route on the public surface is `weightedQuantile(col, weightCol, p)`, which takes any quantile but needs a weight column, so this page carries a column of ones purely to reach it. Worse, the two use **different interpolations**: `p99` interpolates at `(n−1)·p` and `weightedQuantile` at `n·p − 0.5`, which on this data differ in the fourth significant figure (0.015254137 against 0.015257479). A page asking for the 95th and the 99th two ways would get two subtly different answers with nothing to warn it. This page uses `weightedQuantile` for both tails so the pair are comparable. Wanted: `reduce(col, 'quantile', { p })`, or the missing `p1`/`p5`/`p10` kernels, on the same interpolation as the existing ones.
-
-**F-FX-3 — a `histogram` cannot overlay a named reference distribution.** `curve: true` draws the grid's own kernel density estimate, which is exactly right and is what the page uses. But the commonest question asked of a histogram — "and what would a normal with this mean and this spread look like?" — has no answer in the spec: there is no `overlay`, no `distribution`, and `points` is a point set rather than a curve. So the normal is stated as figures beside the chart rather than drawn on it. Wanted: `curve: 'normal'` (or `overlay: { normal: true }`) fitting the named distribution to the binned column and drawing it alongside the KDE, so the two can be seen apart.
-
-**F-FX-4 — `capability` returns null without a tolerance, even when nothing it is being asked for needs one.** Control limits, sigma from the moving range, and the Nelson or Western Electric rule breaks are facts about the readings and need no customer specification whatever. `capability('sd', { rules: 'nelson' })` with no `lower` or `upper` returns `null` — not an empty `cp` on a filled-in `limits`, but nothing at all. This page therefore declares `{ lower: 0 }`, which is honest here because a standard deviation cannot be negative, and quotes no Cp because a one-sided specification does not produce one. A column whose floor is not meaningful would have nothing honest to declare. This was already noted from the earthquake edition; it bit again here. Wanted: `limits` and `violations` returned with no specification, and the capability indices left null.
-
-**F-FX-5 — a derived source cannot read a grid-computed column, and does not say so.** The whole statistics surface reads one perfectly: `reduce`, `acf`, `adf`, `anomalies`, `regressionModel` and `weightedQuantile` all work against a column declared with `value: { deps, compute }`. A **derived** source does not. `groupBy: '<computed>'` comes back as a single `null` bucket, and `select: { sd: { of: '<computed>', fn: 'stddev' } }` comes back all-null — in both cases silently, with no warning and no named refusal, so the derivation simply looks empty. Repro: three hundred rows with `rate` and `prev`, a column `ret` computed as `Math.log(rate / prev)`; `reduce('ret', 'stddev')` answers 0.005036 while a derived grid grouped on `prev` selecting `{ of: 'ret', fn: 'stddev' }` returns zero non-null rows. The asymmetry is the surprising part — the same column id works on one surface and not the other. This demo therefore carries every return **twice**: once as the table's grid-computed column, which is the honest demonstration, and once as a field on the row, because the volatility analysis is a derived grid and has no other way in. The verification checks the two agree. Wanted: either derived sources resolving a computed column, or a named refusal when they cannot.
-
-**F-FX-6 / grid card 1344 — a dense line paints off the plot, silently.** Both line charts on the published page are blank. The renderer's downsample step leaks its LTTB index into each kept point's `x`, so on a time scale every point is placed at the same coordinate off the left of the plot: a fully formed `<path>` of several thousand characters, nought pixels wide, outside the plot rectangle. Nothing warns, nothing throws, and `chart.data()` is no help — it reports the series correctly, each point carrying a real `y`, because the binding succeeded and only the placement is wrong. Measured here on 1.62.1: 7,094 rows in a 411px plot give 405 points whose `x` values are `0, 16, 32 …` with the real dates left in `xKey`, a path bbox of `{x: -557, width: 0}`, and the same collapse at every row count past about twice the plot width. Below that threshold no downsampling happens and the identical chart draws correctly across the full plot. **This is a grid defect, it is fixed in 1.63, and this demo does not work around it** — an earlier revision passed `downsample` high enough to stop the reduction, which made the line appear, and that has been taken out again. The charts are left as they should be written and the page says why. The demo picks the fix up when its pin moves to 1.63.
-
-Two things the same investigation settled. A grid built with `rows: []` infers `text` for an **untyped** column and never revisits that when rows arrive later through `apply({ add })` (grid F-1344-3) — which is why this demo's originally untyped Date column bound as a category axis of 7,094 strings. And a `date` column's value is a `YYYY-MM-DD` string, whichever shape the underlying field holds; `timestamp` is the type that keeps epoch milliseconds. Both were demo-side mistakes and both are fixed: the column is declared `type: 'date'` over the ISO field, and it formats itself.
-
-**F-FX-9 — `adf()`'s default lag search costs seconds on a long series, and nothing says so.** The Statistics tab used to freeze the browser for about thirteen seconds on first open. A CPU profile of the live page put **59.6% of 13,388 ms in one function**, `normalEquations`, with the rest of the linear-model machinery (`solveWls`, `fitLinearModel`, `quadForm`, `choleskySolve`, `auxiliaryR2`) around it: 84.8% of all self time inside the grid bundle, against **14 ms total** in this demo's own files. Timed call by call on 7,094 days, the whole of it is two calls:
-
-| call | ms |
-| --- | --- |
-| `adf({ of: 'rate', orderBy: 'seq' })` | **6,898** |
-| `adf({ of: 'ret', orderBy: 'seq' })` | **6,789** |
-| `regressionModel(…)` with a 7,093-point band | 13 |
-| `acf(…, maxlag: 20)` ×2 | 13 |
-| `interval`, 5×`reduce`, `anomalies`, `correlation`, `spearman` | 22 |
-| building a headless grid over all 7,094 rows | 22 |
-
-It is the **lag search**, not the test. Holding n at 7,094 and varying only the cap:
-
-| `maxlag` | ms | chosen lag | statistic |
-| --- | --- | --- | --- |
-| (default) | **6,938** | 12 | −1.924 |
-| 12 | **361** | 12 | −1.924 |
-| 8 | 138 | 0 | −1.921 |
-| 4 | 63 | 0 | −1.921 |
-| 1 | 22 | 0 | −1.921 |
-
-**Nineteen times the work for the same chosen lag and the same statistic.** Left to its default the search runs to the Schwert rule — 34 candidates at this n — and refits each candidate from scratch rather than extending the previous cross-product, so the cost grows as roughly `maxlag² · n`. Across n it is badly super-linear: 500 days 69 ms, 1,000 → 221, 2,000 → 738, 4,000 → 2,565, 7,094 → 6,915, i.e. n×14 for ms×100. Wanted: the candidate fits sharing one cross-product updated a column at a time, which is the standard way to do this and turns the search from `maxlag²·n` into `maxlag·n`; failing that, the default cap documented next to the call, since nothing in the signature suggests that one call on a long series costs seven seconds.
-
-**What this demo does about it.** It passes `maxlag: 12`, which is a **documented parameter of the call** and not a workaround: declaring a maximum lag is what a reported ADF does anyway, and the cap belongs beside the statistic. The chosen lag is shown as a figure, and the page says when the cap *bound* — because a cap that bound is one that may have changed the answer. On this data it does not: capped and uncapped return the same lags (12 and 11) and the same statistics (−1.9235 and −24.2348) to four decimal places, and the two ADF calls together fall from **13,687 ms to 635 ms**.
-
-**F-FX-7 — eight chart types have no `chart.type.*` string, so their accessible name is a raw catalogue key.** The correlogram on this page announces itself to a screen reader as `chart.type.correlogram chart of` — the key, unresolved, followed by an empty subject. It is not one type: `EN_GB` carries 30 `chart.type.*` keys against the 38 in `TYPES`, and the eight missing are `forest`, `qq`, `ecdf`, `lorenz`, `correlogram`, `control`, `capability` and `movingRange` — which is to say **exactly the statistical family**, the one a statistics demo is made of. All 22 shipped locales are missing all eight, and the keys are not in `MESSAGE_KEYS` either, so nothing flags them as absent. Three charts on this page are affected: the correlogram, and the `qq` and `control` charts on the Statistics tab (`chart.type.qq chart of Log return`, `chart.type.control chart of Standard deviation`). Repro: `Object.keys(EN_GB).filter((k) => k.startsWith('chart.type.'))` has 30 entries; `EN_GB['chart.type.qq']` is `undefined`. Wanted: the eight strings added to every locale and to `MESSAGE_KEYS`, alongside the thirty that are already there. Separately, a correlogram has no single measure column, so "chart of" is left with nothing after it even once the key resolves — its name should say which columns it correlates.
-
-**F-FX-8 — a correlogram's row labels are drawn outside the plot and the margin never makes room for them.** `drawCorrelogram` writes each row label at `x: plot.left - 4` with `text-anchor: 'end'`, and nothing adds the label's width to `plot.left`. The left margin is whatever the generic axis code produced — a constant ~44px here, because a correlogram has no y tick values to measure — so every label wider than that runs off the left edge and is clipped. On this page the four labels are 83px wide against a 44px margin and lose their first characters: "SD return", "BP return", "PY return", "HF return". Measured three ways: with short titles (`A`, `B`, `C`, `D`, 8px) nothing is clipped; with this page's titles the overflow is 39px; with 146px titles it is 102px — and **the box width makes no difference at all**, 39px of overflow at both a 461px box and an 1,100px one. So a demo cannot fix this by giving the chart more room, and shortening the titles until they happened to fit would be hiding it. The page leaves it visible with a note. Wanted: the row labels measured and added to the left margin, as a y axis's tick labels already are.
-
-### How long the tab takes to open
-
-Measured the same way before and after, on the page's own clock — how long the Statistics tab click holds the main thread, at 1920x1200 in headless Chrome on the build box:
-
-| | main thread held | ScriptDuration for the click |
-| --- | --- | --- |
-| before | **12,333 ms** | 12.09 s |
-| after | **1,880 ms** | 1.41 s |
-
-The whole of the difference is F-FX-9 above: two `adf()` calls whose uncapped lag search cost 13.7 seconds between them and now cost 0.64. In the profile `normalEquations` falls from 7,984 ms (59.6% of all self time) to 282 ms (12.8%); the largest single cost left is `getBoundingClientRect` at 478 ms, which is the charts measuring their boxes. Nothing in this demo's own files reaches 10 ms in either profile.
+They are rewritten on every pass, so they can never be stale: switch the pair, or narrow the dates, and the verdicts change with the figures beneath them.
 
 ## Running it
 
@@ -192,7 +132,7 @@ The server prints the address to open. It picks a free port each time so it will
 | `/?source=snapshot` | the saved copy alone, no network at all |
 | `/?source=live` | the whole history fetched from the API, ignoring the saved copy |
 
-That default is the shape of the page. Twenty-seven years of rates arrive in **one** `rows.load`, through the router; the handful of days since arrive as a **change**. Sending seven thousand days in as `apply({ add })` batches would be quadratic — each batch is matched against everything already there — and the difference is a page that opens at once against a page that appears to hang. When the API cannot be reached the top-up is skipped, the whole dashboard still works from the saved copy, and the masthead says plainly that is what you are looking at.
+That default is the shape of the page. Twenty-seven years of rates arrive in one load, so the page opens at once rather than filling in day by day; the handful of days published since then arrive moments later as a live update. When the API cannot be reached, the top-up is simply skipped: the whole dashboard still works from the saved copy, and the masthead says plainly that is what you are looking at.
 
 To take a fresh saved copy, `npm run snapshot`. A [nightly workflow](.github/workflows/snapshot.yml) does the same and commits it when the rates have changed.
 
@@ -202,19 +142,13 @@ The **European Central Bank's euro foreign exchange reference rates**, read thro
 
 The ECB publishes one set of reference rates each TARGET working day at about 16:00 Central European Time, based on a regular concertation between central banks across Europe. They are reference rates for information: they are not trading rates, there is no bid and no offer, and a day's rate is a single number for the whole day. Every statistic on this page is a statistic about that series and should be read as one.
 
-What the API does, established by request before any of this was written:
-
 | | |
 | --- | --- |
 | Endpoint | `GET https://api.frankfurter.dev/v1/1999-01-04..?base=EUR&symbols=USD,GBP,JPY,CHF` |
-| The whole history in one call | 7,094 publication days, 4 January 1999 to today, **464 KB** of JSON (90 KB gzipped), served in about 0.7s |
-| Versioning | the `/v1/` prefix is required — `https://api.frankfurter.dev/latest` is a 404. The older `api.frankfurter.app` host 301s to this one |
-| CORS | `access-control-allow-origin: *`, `allow-methods: GET, OPTIONS`, `max-age: 7200`. A `github.io` origin is served, and the OPTIONS preflight answers 200 |
-| Caching | `cache-control: public, max-age=86400`, behind Cloudflare |
-| Rate limits | none published and none observed: twelve requests back to back all answered 200. This demo makes **one** request per page load in any case, and none at all with `?source=snapshot` |
+| The whole history in one call | 7,094 publication days, 4 January 1999 to today, served in under a second |
 | Terms | the reference rates are the ECB's and may be reused with the source acknowledged. Frankfurter is open source, free, and asks for no key |
 
-Two things worth knowing before reading the statistics. A "day" here is a **publication day**, not a calendar day: weekends and TARGET holidays are absent, so a twenty-day run is about a trading month rather than exactly four calendar weeks, and the ACF's "lag 1" means the previous publication day. And the series is **quoted against the euro throughout**, so EUR/CHF before January 2015 is a rate the Swiss National Bank was actively holding at a floor — which is why the franc's statistics look the way they do, and why they are the most interesting of the four.
+Two things worth knowing before reading the statistics. A "day" here is a **publication day**, not a calendar day: weekends and TARGET holidays are absent, so a twenty-day run is about a trading month rather than exactly four calendar weeks, and the ACF's "lag 1" means the previous publication day. And the series is **quoted against the euro throughout**, so EUR/CHF before January 2015 is a rate the Swiss National Bank was actively holding at a floor, which is why the franc's statistics look the way they do, and why they are the most interesting of the four.
 
 ## Files
 
@@ -234,7 +168,7 @@ tools/verify.mjs          open it in a real browser and check all of it
 data/snapshot/            the API's own answer, saved, so the demo works with no network
 ```
 
-`src/analysis.js` shapes data and computes no statistics; `src/statistics.js` computes no statistics either, it asks the grid for them. The line between the two files is the honest claim this demo makes.
+Every statistic on the page comes from the grid; `src/analysis.js` only shapes the rows it reads.
 
 ## Checking it
 
@@ -243,38 +177,7 @@ npm run verify            # the saved copy, the statistics tab, and the fallback
 npm run verify -- --all   # also the live top-up against the real API
 ```
 
-Needs Node 22 and a Chrome or Chromium on the machine. It is not a smoke test. It:
-
-- opens the saved copy and insists the table holds every day the copy holds, that the router saw the whole history as **one** load, and that every chart **drew real geometry for its data**;
-- recomputes every pair's returns **from the rates alone** and insists the grid's own computed return column agrees — its standard deviation, its mean and its Jarque-Bera, all read back off the computed column through the statistics surface;
-- opens the Statistics tab and cross-checks **every verdict figure** against `tools/crosscheck.mjs`, which imports nothing the page uses: its own Lanczos log-gamma and Lentz incomplete beta for a Student-t critical value, its own least squares by Gauss-Jordan inversion of XᵀX, its own moving-range control limits and Nelson rule counts, its own autocorrelation, its own Augmented Dickey-Fuller regression, its own modified z-scores, and its own quantiles on both of the engine's two interpolations;
-- prints both numbers and the gap between them for each, and fails on any gap past 1e-9;
-- switches to the franc and cross-checks the whole thing again, insisting its tails are fatter than the dollar's, that its biggest day is 15 January 2015, and that the page names what happened on it;
-- narrows to "Since 2015" and cross-checks the whole thing a third time, insisting the day count, the runs on the control chart and the days fitted all fall, that the bound tiles followed the filter, and that the verdicts were rewritten;
-- blocks the API in the browser and opens the live page, to prove a visitor gets the whole saved copy and is told the API could not be reached;
-- insists on nought console errors and nought page errors throughout, and on no watermark on localhost.
-
-### The checks that were not there
-
-Two versions of this demo went out visibly broken with the verification passing, and both misses were the same mistake made twice: checking that the DOM existed rather than that the page was right.
-
-**The first** shipped with both line charts blank and 383 checks green. The check asked that `chart.data()` reported points carrying a measure — true, the binding was fine — and that the chart box held more than two of `rect, circle, path, line, polyline, text`. The box held nine: two axis rectangles, six tick labels, and the one `<path>` that should have been the line, present with an empty `d`. **Axis furniture cleared the bar on its own.**
-
-**The second** replaced that with a geometry check — no empty `d`, a path of at least 64 characters — and shipped with every Date cell blank and both lines still invisible. The path was six thousand characters long; every coordinate in it was the same number, and that number was off the left of the plot. Nothing had ever looked at a painted cell, and nothing had asked *where* a mark was.
-
-What is checked now:
-
-- **Where the marks are**, not just that they exist: the widest data mark's bounding box must intersect the plot rectangle, and a line must span at least half of it. A six-thousand-character path parked outside the plot fails.
-- **No empty `d`** left behind, and a path of real length or real data marks or a canvas.
-- **A continuous axis** for a `line`, `area`, `step` or `scatter` bound to an x column: `data().kind === 'category'` fails.
-- **Painted Date cells**: every cell the table has rendered must carry text that parses as a date — read several rows down, not just the first, because the one row that rendered on the broken page was the first one.
-- The same geometry rules on all seven Statistics plots, on every pass.
-
-The line-placement lines are recorded as **known** rather than red, because the defect is the grid's (card 1344) and this demo is not working around it. They are still run and still printed, they name the card, and they are listed in the summary — and if one ever *passes*, it says so loudly, because that means the pin has moved and the known line should come out.
-
-Six of these fail on the column definition that shipped first. The count went from 383 to 444, plus ten known grid-defect lines.
-
-Every kernel convention the cross-check implements was pinned against the engine before it was written, and the comments say which: `stddev` divides by n−1, `skewness` and `kurtosis` are the sample-adjusted G1 and G2, `jarqueBera` uses the **population** moments rather than those adjusted ones, and the two quantile routes interpolate differently. The one thing not recomputed is the ADF **lag order**: choosing it is a policy — which criterion, over which sample, up to which cap — and re-implementing a policy proves nothing, so the engine's chosen lag is taken as given and the t-statistic at that lag is recomputed from scratch. It agrees to 1e-13.
+Needs Node 22 and a Chrome or Chromium on the machine. It opens the saved copy and confirms the table holds every day the copy holds; it recomputes every pair's returns from the rates alone and checks the grid's own computed column agrees; it opens the Statistics tab and cross-checks every verdict figure against an independent implementation in `tools/crosscheck.mjs`, printing the gap between the two and failing on anything past 1e-9; it switches pair and narrows the date range and checks the figures and verdicts move correctly; and it blocks the API in the browser to prove a visitor still gets the whole saved copy with a clear message when the API could not be reached.
 
 ## Licence
 

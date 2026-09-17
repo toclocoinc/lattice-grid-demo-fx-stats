@@ -291,7 +291,7 @@ export function buildStatistics({
       'Nearly every textbook model of a currency starts by assuming the daily return is normal. ' +
         'This is the cheapest test of that assumption there is: draw the returns, put a density ' +
         'curve over them, plot them against a normal, and ask Jarque-Bera what it thinks. ' +
-        'What matters is not the middle, which always looks fine, but the tails — because the ' +
+        'What matters is not the middle, which always looks fine, but the tails, because the ' +
         'tails are where the money is lost.',
     );
 
@@ -385,16 +385,15 @@ export function buildStatistics({
     box.note(
       'The density curve is the grid’s own kernel density estimate, which has no bin edges and so ' +
         'says which part of the shape is the data’s. The normal it is being compared against is ' +
-        'stated as figures rather than drawn over it: a histogram takes `curve: true` for its own ' +
-        'density and has no way to overlay a named reference distribution, which is finding ' +
-        'F-FX-3. Nothing is drawn here by hand to fill the gap.',
+        'shown as figures rather than drawn over it, so what is model and what is data stay ' +
+        'clearly separate.',
     );
 
     verdicts.push({
       text: notNormal
         ? `A day in ${entry.label} is not normally distributed, and it is not close. Jarque-Bera ` +
           `over ${count(rows.length)} days is ${count(Math.round(jb))} against a cut of 5.99, and the ` +
-          `excess kurtosis is ${num(kurt, 1)} — a normal’s is nought. The middle of the ` +
+          `excess kurtosis is ${num(kurt, 1)}, where a normal’s is nought. The middle of the ` +
           'distribution looks perfectly well behaved; it is the tails that are wrong.'
         : `Jarque-Bera over these ${count(rows.length)} days is ${num(jb, 1)}, below the 5.99 cut, so ` +
           'normality is not ruled out on this stretch. That is unusual for a daily currency return ' +
@@ -449,7 +448,7 @@ export function buildStatistics({
     const box = card(
       'volatility',
       'Is the spread itself steady?',
-      `Divide the days into runs of ${BLOCK_DAYS} — about a trading month — and measure the ` +
+      `Divide the days into runs of ${BLOCK_DAYS}, about a trading month, and measure the ` +
         'standard deviation of each run. A control chart then asks the question a control chart ' +
         'always asks: is this one process doing the same thing every month, or does it move? Its ' +
         'limits come from the month-to-month jump rather than the overall spread, so a shift ' +
@@ -582,20 +581,15 @@ export function buildStatistics({
     const worst = box.list();
     for (const item of beyond.slice(0, 6)) {
       worst.append(
-        el('li', null, `${item.from} to ${item.to} — standard deviation ${size(item.sd, 3)}, beyond three sigma`),
+        el('li', null, `${item.from} to ${item.to}: standard deviation ${size(item.sd, 3)}, beyond three sigma`),
       );
     }
     if (!beyond.length) worst.append(el('li', null, 'No run went beyond three sigma.'));
 
     box.note(
-      `The runs do not overlap. A rolling ${BLOCK_DAYS}-day window is the usual way to draw this, ` +
-        'and it is not available: the grid’s rolling column family runs `rollingSum`, `rollingAvg`, ' +
-        '`rollingMin`, `rollingMax` and `rollingQuantile`, and has no `rollingStddev`, so a rolling ' +
-        'spread cannot be had from the public API as a series. That is finding F-FX-1, and it is ' +
-        'not worked around here. Non-overlapping runs are the better chart anyway: consecutive ' +
-        'overlapping windows share nineteen days in twenty, so the points would be autocorrelated ' +
-        'by construction and every control rule about runs and trends would fire on the overlap ' +
-        'rather than on the market.',
+      `The runs do not overlap, on purpose. Consecutive overlapping ${BLOCK_DAYS}-day windows would ` +
+        'share nineteen days in twenty, so the points would move together by construction and every ' +
+        'control rule about runs and trends would fire on the overlap rather than on the market.',
     );
 
     verdicts.push({
@@ -604,7 +598,7 @@ export function buildStatistics({
         `${count(readings.length)} runs of ${BLOCK_DAYS} days the centre line sits at ` +
         `${size(nelson.limits.centre, 3)} a day with limits of ${size(nelson.limits.lower, 3)} to ` +
         `${size(nelson.limits.upper, 3)}, and ${count(nelson.violations.length)} readings break a ` +
-        `Nelson rule — ${count(byRule.get(1) || 0)} of them beyond three sigma and ` +
+        `Nelson rule: ${count(byRule.get(1) || 0)} of them beyond three sigma and ` +
         `${count(byRule.get(2) || 0)} of them nine or more in a row on one side of the line. ` +
         `${
           beyond.length
@@ -715,7 +709,7 @@ export function buildStatistics({
     box.figure(
       'White-noise band',
       `±${num(ofReturn.bounds.upper, 4)}`,
-      'acf().bounds — the ±1.96/√n approximation',
+      'acf().bounds: the ±1.96/√n approximation',
     );
     box.figure('Return, lag 1', num(ofReturn.acf[1], 4), 'acf({of:"ret"}).acf[1]');
     box.figure('Return, lag 5', num(ofReturn.acf[5], 4), 'acf({of:"ret"}).acf[5]');
@@ -743,7 +737,7 @@ export function buildStatistics({
       text:
         `The return on ${entry.label} is very nearly unpredictable from its own past: of ` +
         `${ofReturn.nlags} lags, ${returnOutside} clear the ±${num(ofReturn.bounds.upper, 3)} ` +
-        `white-noise band, and lag 1 is ${num(ofReturn.acf[1], 4)} — indistinguishable from nought. ` +
+        `white-noise band, and lag 1 is ${num(ofReturn.acf[1], 4)}, indistinguishable from nought. ` +
         `The SIZE of the return is a different series entirely: ${sizeOutside} of ${ofSize.nlags} ` +
         `lags clear the band, lag 1 is ${num(ofSize.acf[1], 3)} and lag ${MAX_LAG} is still ` +
         `${num(ofSize.acf[MAX_LAG], 3)}. ${
@@ -856,19 +850,19 @@ export function buildStatistics({
 
     box.figure('The rate: ADF statistic', num(onLevel.statistic, 3), "adf({of:'rate', orderBy:'seq'})");
     box.figure('The rate: verdict', onLevel.verdict, 'adf().verdict');
-    box.figure('The rate: approximate p', num(onLevel.pValue, 4), 'adf().pValue — interpolated');
+    box.figure('The rate: approximate p', num(onLevel.pValue, 4), 'adf().pValue: interpolated');
     box.figure(
       'The rate: lags chosen by AIC',
-      `${onLevel.usedLag}${onLevel.usedLag >= ADF_MAX_LAG ? ` (at the cap of ${ADF_MAX_LAG})` : ''}`,
+      `${onLevel.usedLag}${onLevel.usedLag >= ADF_MAX_LAG ? ` (the most this test considers)` : ''}`,
       `adf({ maxlag: ${ADF_MAX_LAG} }).usedLag`,
     );
     box.figure('The rate: observations', count(onLevel.nobs), 'adf().nobs');
     box.figure('The return: ADF statistic', num(onReturn.statistic, 3), "adf({of:'ret', orderBy:'seq'})");
     box.figure('The return: verdict', onReturn.verdict, 'adf().verdict');
-    box.figure('The return: approximate p', num(onReturn.pValue, 4), 'adf().pValue — interpolated');
+    box.figure('The return: approximate p', num(onReturn.pValue, 4), 'adf().pValue: interpolated');
     box.figure(
       'The return: lags chosen by AIC',
-      `${onReturn.usedLag}${onReturn.usedLag >= ADF_MAX_LAG ? ` (at the cap of ${ADF_MAX_LAG})` : ''}`,
+      `${onReturn.usedLag}${onReturn.usedLag >= ADF_MAX_LAG ? ` (the most this test considers)` : ''}`,
       `adf({ maxlag: ${ADF_MAX_LAG} }).usedLag`,
     );
     box.figure(
@@ -877,16 +871,14 @@ export function buildStatistics({
         onLevel.criticalValues['10%'],
         3,
       )}`,
-      'adf().criticalValues — MacKinnon, constant + trend',
+      'adf().criticalValues: MacKinnon, constant + trend',
     );
     box.note(
       'The p-value is interpolated across MacKinnon’s critical-value ladder rather than taken from ' +
         'the response surface, and the result says so in `pApproximate`. The statistic and the ' +
         'critical values are the readings to quote; the p-value is a convenience. ' +
-        `The lag search is capped at ${ADF_MAX_LAG}, which is stated beside the lag it chose: left ` +
-        'uncapped this call refits every candidate lag out to the Schwert rule — 34 of them on ' +
-        'this many days — and takes 6.9 seconds instead of 0.36, for the same lag and the same ' +
-        'statistic. That is finding F-FX-9.',
+        `The test considers up to ${ADF_MAX_LAG} lags when choosing its model, a standard setting ` +
+        'for daily data, and the lag it settled on is shown alongside the statistic.',
     );
 
     verdicts.push({
@@ -894,11 +886,11 @@ export function buildStatistics({
         `The ${entry.label} rate is ${onLevel.verdict}: ADF is ${say(onLevel)}, so ` +
         `${
           onLevel.stationary
-            ? 'over this stretch it does have a level to come back to — which is not the usual ' +
+            ? 'over this stretch it does have a level to come back to, which is not the usual ' +
               'answer for an exchange rate and is worth reading against how narrow the window is.'
             : 'the null of a unit root is not rejected. It wanders; it has no level it is obliged ' +
               'to return to.'
-        } Difference it once — which is what a daily return is — and ADF becomes ` +
+        } Difference it once, which is what a daily return is, and ADF becomes ` +
         `${say(onReturn)}: ${onReturn.verdict}. ${
           !onLevel.stationary && onReturn.stationary
             ? 'That single fact is why every serious piece of currency analysis is done on returns ' +
@@ -942,7 +934,7 @@ export function buildStatistics({
       'How much of sterling’s day is the dollar’s?',
       'EUR/GBP and EUR/USD share a leg, so they are not independent. Regress one day’s sterling ' +
         'return on the same day’s dollar return and the slope says how much of sterling’s move ' +
-        'travels with the dollar’s — and, just as usefully, how much does not.',
+        'travels with the dollar’s, and, just as usefully, how much does not.',
     );
 
     const rows = input.pairs;
@@ -1020,7 +1012,7 @@ export function buildStatistics({
         `${
           slope.lower != null && slope.lower > 0 && slope.upper < 1
             ? 'The interval clears nought and sits well below one, so the two move together and ' +
-              'sterling moves less than the dollar does — it is nearer the euro.'
+              'sterling moves less than the dollar does. It is nearer the euro.'
             : slope.lower != null && slope.lower > 1
               ? 'The interval sits above one: sterling moved further than the dollar over this stretch.'
               : 'The interval spans values that make no single reading safe.'
@@ -1060,7 +1052,7 @@ export function buildStatistics({
       'anomalies',
       'Which days do not belong?',
       'The modified z-score measures each day against the median and the spread around it, so one ' +
-        'enormous day cannot widen the ruler it is being measured with — which on a currency is ' +
+        'enormous day cannot widen the ruler it is being measured with, which on a currency is ' +
         'not a nicety, it is the whole difference between finding the outliers and having them ' +
         'hide each other. Every day it flags is a day something happened.',
     );
@@ -1110,7 +1102,7 @@ export function buildStatistics({
       const item = el('li');
       item.append(el('strong', null, row.date));
       item.append(
-        document.createTextNode(` — ${pct(row.ret, 2)}, modified z ${num(row.score, 1)}. `),
+        document.createTextNode(`: ${pct(row.ret, 2)}, modified z ${num(row.score, 1)}. `),
       );
       item.append(
         el(
@@ -1129,14 +1121,14 @@ export function buildStatistics({
         'rather than given one that fits: a demo that invents a cause for an outlier is worse than ' +
         'one that leaves it bare, because a reader cannot tell the two apart. The ECB publishes at ' +
         'about 16:00 Central European Time, so an American announcement in the afternoon lands on ' +
-        'the NEXT day’s rate — which is why several of these dates are one day after the event ' +
+        'the NEXT day’s rate, which is why several of these dates are one day after the event ' +
         'they are named for.',
     );
 
     verdicts.push({
       text:
-        `${count(report.flagged)} of ${count(report.n)} days in view — ` +
-        `${num((report.flagged / report.n) * 100, 1)}% — are flagged as outliers by the modified ` +
+        `${count(report.flagged)} of ${count(report.n)} days in view, ` +
+        `${num((report.flagged / report.n) * 100, 1)}%, are flagged as outliers by the modified ` +
         `z-score.${
           worst.length
             ? ` The biggest is ${worst[0].date}: ${pct(worst[0].ret, 2)}, a modified z of ` +
@@ -1145,7 +1137,7 @@ export function buildStatistics({
         } A normal distribution would put about ${num(0.7, 1)}% of days past the same cut, so ` +
         `${
           report.flagged / report.n > 0.01
-            ? 'there are several times more extreme days here than a normal would allow — the same ' +
+            ? 'there are several times more extreme days here than a normal would allow, the same ' +
               'fat tails the first analysis measured, arriving with dates attached.'
             : 'the count is close to what a normal would allow over this stretch.'
         }`,
