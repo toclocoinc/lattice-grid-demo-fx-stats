@@ -59,6 +59,15 @@ const NORMAL_Z99 = 2.3263478740408408;
 /** How many lags the autocorrelation is taken out to. */
 const MAX_LAG = 20;
 
+/**
+ * The cap on the Augmented Dickey-Fuller lag search.
+ *
+ * Twelve is an ordinary declared maximum for daily data, and declaring one is
+ * both standard practice and, on this engine, the difference between a page
+ * that opens and a page that freezes: see F-FX-9 and the note at the call.
+ */
+const ADF_MAX_LAG = 12;
+
 /** How many anomalous days are listed. */
 const TOP_ANOMALIES = 10;
 
@@ -131,51 +140,28 @@ export function buildStatistics({
   let pairId = pair || PAIRS[0].id;
   let rangeId = (ranges && ranges[0] && ranges[0].id) || 'all';
 
+  /*
+   * No buttons here.
+   *
+   * The pair and the date range are chosen once, in the row above the tabs, and
+   * that row is on the page whichever tab is showing. This panel used to draw a
+   * second copy of both, so the published page carried the same six controls
+   * twice — once above the tabs and once inside this panel — with no way to
+   * tell which was in charge. They are the same state either way, so there is
+   * one row of them.
+   *
+   * What is left is the basis line: which pair, how many days, and between
+   * which two dates every figure below was computed over. That belongs to the
+   * figures rather than to the controls.
+   */
   const controls = el('div', 'stats-controls');
-  controls.append(el('span', 'actions-label', 'Pair'));
-  const pairButtons = new Map();
-  for (const entry of PAIRS) {
-    const button = el('button', 'action toggle', entry.label);
-    button.type = 'button';
-    button.dataset.pair = entry.id;
-    button.addEventListener('click', () => {
-      if (onPair) onPair(entry.id);
-    });
-    pairButtons.set(entry.id, button);
-    controls.append(button);
-  }
-
-  controls.append(el('span', 'actions-gap'));
-  controls.append(el('span', 'actions-label', 'Dates'));
-  const rangeButtons = new Map();
-  for (const entry of ranges || []) {
-    const button = el('button', 'action toggle', entry.label);
-    button.type = 'button';
-    button.dataset.range = entry.id;
-    button.addEventListener('click', () => {
-      if (onRange) onRange(entry.id);
-    });
-    rangeButtons.set(entry.id, button);
-    controls.append(button);
-  }
-
   const basis = el('span', 'stats-basis');
   controls.append(basis);
   root.append(controls);
 
-  /** Show which pair and which range are in force. */
-  const paint = () => {
-    for (const [id, button] of pairButtons) {
-      const on = id === pairId;
-      button.classList.toggle('on', on);
-      button.setAttribute('aria-pressed', String(on));
-    }
-    for (const [id, button] of rangeButtons) {
-      const on = id === rangeId;
-      button.classList.toggle('on', on);
-      button.setAttribute('aria-pressed', String(on));
-    }
-  };
+  /* Kept as a no-op hook so the host's `setPair`/`setRange` need not know
+     whether this panel draws controls of its own. */
+  const paint = () => {};
 
   /* ---------------- the verdict panel ---------------- */
 
@@ -315,7 +301,7 @@ export function buildStatistics({
       return { ok: false, reason: 'too few returns' };
     }
 
-    const source = dataset(rows, RETURN_COLUMNS);
+    const source = input.returnsGrid;
     const S = source.statistics;
 
     const interval = S.interval('ret', { kind: 'mean', confidence: 0.95 });
@@ -672,7 +658,7 @@ export function buildStatistics({
       return { ok: false, reason: 'too few returns' };
     }
 
-    const source = dataset(rows, RETURN_COLUMNS);
+    const source = input.returnsGrid;
     const S = source.statistics;
 
     /* `orderBy` is required and never guessed: a series read in the grid's
@@ -806,15 +792,27 @@ export function buildStatistics({
       return { ok: false, reason: 'too few days' };
     }
 
-    const levelGrid = dataset(input.levels, [
-      { id: 'seq', field: 'seq', title: 'Position', type: 'number' },
-      { id: 'date', field: 'date', title: 'Date' },
-      { id: 'rate', field: 'rate', title: 'Rate', type: 'number' },
-    ]);
-    const returnGrid = dataset(input.returns, RETURN_COLUMNS);
+    const levelGrid = input.levelGrid;
+    const returnGrid = input.returnsGrid;
 
-    const onLevel = levelGrid.statistics.adf({ of: 'rate', orderBy: 'seq' });
-    const onReturn = returnGrid.statistics.adf({ of: 'ret', orderBy: 'seq' });
+    /*
+     * The lag search is capped, and the cap is stated.
+     *
+     * `maxlag` is a documented parameter of this call and declaring one is what
+     * a reported ADF does anyway — the cap belongs beside the statistic. Left
+     * to its default the search runs to the Schwert rule, which on 7,094 days
+     * is 34 candidate lags, and each candidate is refitted from scratch: that
+     * is 6.9 SECONDS per call on this box, twice per pass, and it was the whole
+     * of the ~13 s freeze the Statistics tab used to open with. At `maxlag: 12`
+     * the same series takes 361 ms and returns the same chosen lag (12) and the
+     * same statistic (-1.924) to three decimal places. See F-FX-9.
+     *
+     * The chosen lag is shown as a figure, and the page says so when the cap
+     * binds — because a cap that bound is a cap that may have changed the
+     * answer, and a reader is entitled to know which.
+     */
+    const onLevel = levelGrid.statistics.adf({ of: 'rate', orderBy: 'seq', maxlag: ADF_MAX_LAG });
+    const onReturn = returnGrid.statistics.adf({ of: 'ret', orderBy: 'seq', maxlag: ADF_MAX_LAG });
     if (!onLevel || !onReturn) {
       box.note('The stationarity test was refused on these days.');
       return { ok: false, reason: 'no adf' };
@@ -859,12 +857,20 @@ export function buildStatistics({
     box.figure('The rate: ADF statistic', num(onLevel.statistic, 3), "adf({of:'rate', orderBy:'seq'})");
     box.figure('The rate: verdict', onLevel.verdict, 'adf().verdict');
     box.figure('The rate: approximate p', num(onLevel.pValue, 4), 'adf().pValue — interpolated');
-    box.figure('The rate: lags chosen by AIC', String(onLevel.usedLag), 'adf().usedLag');
+    box.figure(
+      'The rate: lags chosen by AIC',
+      `${onLevel.usedLag}${onLevel.usedLag >= ADF_MAX_LAG ? ` (at the cap of ${ADF_MAX_LAG})` : ''}`,
+      `adf({ maxlag: ${ADF_MAX_LAG} }).usedLag`,
+    );
     box.figure('The rate: observations', count(onLevel.nobs), 'adf().nobs');
     box.figure('The return: ADF statistic', num(onReturn.statistic, 3), "adf({of:'ret', orderBy:'seq'})");
     box.figure('The return: verdict', onReturn.verdict, 'adf().verdict');
     box.figure('The return: approximate p', num(onReturn.pValue, 4), 'adf().pValue — interpolated');
-    box.figure('The return: lags chosen by AIC', String(onReturn.usedLag), 'adf().usedLag');
+    box.figure(
+      'The return: lags chosen by AIC',
+      `${onReturn.usedLag}${onReturn.usedLag >= ADF_MAX_LAG ? ` (at the cap of ${ADF_MAX_LAG})` : ''}`,
+      `adf({ maxlag: ${ADF_MAX_LAG} }).usedLag`,
+    );
     box.figure(
       'Critical values (1%, 5%, 10%)',
       `${num(onLevel.criticalValues['1%'], 3)}, ${num(onLevel.criticalValues['5%'], 3)}, ${num(
@@ -876,7 +882,11 @@ export function buildStatistics({
     box.note(
       'The p-value is interpolated across MacKinnon’s critical-value ladder rather than taken from ' +
         'the response surface, and the result says so in `pApproximate`. The statistic and the ' +
-        'critical values are the readings to quote; the p-value is a convenience.',
+        'critical values are the readings to quote; the p-value is a convenience. ' +
+        `The lag search is capped at ${ADF_MAX_LAG}, which is stated beside the lag it chose: left ` +
+        'uncapped this call refits every candidate lag out to the Schwert rule — 34 of them on ' +
+        'this many days — and takes 6.9 seconds instead of 0.36, for the same lag and the same ' +
+        'statistic. That is finding F-FX-9.',
     );
 
     verdicts.push({
@@ -941,11 +951,7 @@ export function buildStatistics({
       return { ok: false, reason: 'too few pairs' };
     }
 
-    const source = dataset(rows, [
-      { id: 'usdRet', field: 'usdRet', title: 'EUR/USD return', type: 'number' },
-      { id: 'gbpRet', field: 'gbpRet', title: 'EUR/GBP return', type: 'number' },
-      { id: 'date', field: 'date', title: 'Date' },
-    ]);
+    const source = input.pairsGrid;
     const S = source.statistics;
 
     const model = S.regressionModel({ predictors: ['usdRet'], response: 'gbpRet', confidence: 0.95 });
@@ -1065,7 +1071,7 @@ export function buildStatistics({
       return { ok: false, reason: 'too few returns' };
     }
 
-    const source = dataset(rows, RETURN_COLUMNS);
+    const source = input.returnsGrid;
     const report = source.statistics.anomalies({ columns: ['ret'], method: 'modifiedZScore' });
     if (!report) {
       box.note('The anomaly scan was refused on these days.');
@@ -1202,6 +1208,32 @@ export function buildStatistics({
         .filter((row) => typeof row.usdRet === 'number' && typeof row.gbpRet === 'number')
         .map((row) => ({ id: row.date, date: row.date, usdRet: row.usdRet, gbpRet: row.gbpRet })),
     };
+
+    /*
+     * One grid per dataset, built once and shared by every analysis that asks a
+     * question of it.
+     *
+     * Four of the six analyses want the same thing — the selected pair's daily
+     * returns — and each of them used to build its own headless grid over all
+     * seven thousand of them. Four identical ingests of the same rows, on every
+     * pass, before a single statistic was computed. They are built here instead,
+     * and they are still owned by this pass, so the teardown is unchanged.
+     */
+    input.returnsGrid = input.returns.length ? dataset(input.returns, RETURN_COLUMNS) : null;
+    input.levelGrid = input.levels.length
+      ? dataset(input.levels, [
+          { id: 'seq', field: 'seq', title: 'Position', type: 'number' },
+          { id: 'date', field: 'date', title: 'Date' },
+          { id: 'rate', field: 'rate', title: 'Rate', type: 'number' },
+        ])
+      : null;
+    input.pairsGrid = input.pairs.length
+      ? dataset(input.pairs, [
+          { id: 'usdRet', field: 'usdRet', title: 'EUR/USD return', type: 'number' },
+          { id: 'gbpRet', field: 'gbpRet', title: 'EUR/GBP return', type: 'number' },
+          { id: 'date', field: 'date', title: 'Date' },
+        ])
+      : null;
 
     state.rows = rows.length;
     state.pair = pairId;

@@ -28,11 +28,21 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+/*
+ * The page scrolls; it is not pinned to the viewport.
+ *
+ * This began as the earthquake edition's layout, where every tab holds a grid
+ * and a grid scrolls inside itself — so locking the page to 100% of the
+ * viewport and letting the tab host clip was right there. It is wrong here:
+ * the Statistics tab is a tall stack of cards, not a grid, and under the old
+ * rules it was cut off at the bottom of the window with no way to scroll to
+ * the rest of it. `min-height` rather than `height`, and nothing clips.
+ */
 #app {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  height: 100%;
+  min-height: 100%;
   padding: 16px 20px 12px;
 }
 
@@ -228,28 +238,28 @@ body {
 
 /* Tabs and panes */
 
+/*
+ * The tab host sizes to whatever the active panel holds.
+ *
+ * The tabs module does not size or clip its panels — it ships no CSS for them
+ * at all — so the clipping was entirely this file's: `flex: 1` with
+ * `overflow: hidden`, which suits a grid that scrolls internally and cuts the
+ * Statistics panel in half. The Rates tab keeps its own height from its grid
+ * config (`height: 420`), so nothing here needs to force one.
+ */
 .tabs-host {
   background: var(--panel);
   border: 1px solid var(--line);
   border-radius: 10px;
   display: flex;
-  flex: 1;
   flex-direction: column;
-  min-height: 0;
-  overflow: hidden;
   padding: 10px 12px 12px;
 }
 
 .tabs-host [role='tabpanel'] {
   display: flex;
-  flex: 1;
   flex-direction: column;
-  min-height: 0;
-}
-
-.tabs-host [role='tabpanel'] > * {
-  flex: 1;
-  min-height: 0;
+  min-width: 0;
 }
 
 /* Waiting and failure */

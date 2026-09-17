@@ -15,7 +15,7 @@ Every euro reference rate the European Central Bank has published since the euro
 
 A grid that can hold a million rows is a table. A grid that can tell you what is in them is something else.
 
-Everything on the Statistics tab is a figure the grid produced, and every figure is shown with the call that produced it. Nothing on the page works out a mean, a spread, a slope, a control limit, an autocorrelation or an outlier by hand and prints it beside the grid's charts — that would prove nothing. The verification (`npm run verify`) exists to hold that line: it reads the raw rates out of the table, computes all of it a second and completely independent way in Node, and insists the two agree to the last significant figure. At the time of writing that is 409 checks, and the gap it prints for each cross-checked figure is `0.00e+0`.
+Everything on the Statistics tab is a figure the grid produced, and every figure is shown with the call that produced it. Nothing on the page works out a mean, a spread, a slope, a control limit, an autocorrelation or an outlier by hand and prints it beside the grid's charts — that would prove nothing. The verification (`npm run verify`) exists to hold that line: it reads the raw rates out of the table, computes all of it a second and completely independent way in Node, and insists the two agree to the last significant figure. At the time of writing that is 444 checks — plus ten more that are run and reported but not counted as failures, because they measure a defect in the grid this demo is pinned to rather than in the demo. The gap it prints for each cross-checked figure is `0.00e+0`.
 
 Currencies are a good subject for this. Everyone already believes six things about a daily exchange rate — that it is roughly normal, that yesterday tells you nothing about tomorrow, that a rate drifts rather than reverting, that pairs sharing a leg move together — and a statistics engine can check every one of them against twenty-seven years of the real thing in under a second. One of those beliefs turns out to be badly wrong, one is exactly right, and the difference between the two is the most useful thing on the page.
 
@@ -117,7 +117,7 @@ They are rewritten on every pass, so they can never be stale, and the verificati
 
 ## What the grid could not reach
 
-Eight things this page wanted and 1.62.1 does not do. None of them is worked around: the behaviour is left visible on the page with a note saying what is happening, because a demo that hides a defect teaches the wrong thing.
+Nine things this page wanted and 1.62.1 does not do. None of them is worked around: the behaviour is left visible on the page with a note saying what is happening, because a demo that hides a defect teaches the wrong thing.
 
 The last three were found on the **published** page rather than in the checks, which is worth saying plainly: the first version of this demo shipped with both line charts blank and the verification passing, and the version after that shipped with every Date cell blank. What that cost, and what now stops it happening again, is under "Checking it" below.
 
@@ -135,9 +135,45 @@ The last three were found on the **published** page rather than in the checks, w
 
 Two things the same investigation settled. A grid built with `rows: []` infers `text` for an **untyped** column and never revisits that when rows arrive later through `apply({ add })` (grid F-1344-3) — which is why this demo's originally untyped Date column bound as a category axis of 7,094 strings. And a `date` column's value is a `YYYY-MM-DD` string, whichever shape the underlying field holds; `timestamp` is the type that keeps epoch milliseconds. Both were demo-side mistakes and both are fixed: the column is declared `type: 'date'` over the ISO field, and it formats itself.
 
+**F-FX-9 — `adf()`'s default lag search costs seconds on a long series, and nothing says so.** The Statistics tab used to freeze the browser for about thirteen seconds on first open. A CPU profile of the live page put **59.6% of 13,388 ms in one function**, `normalEquations`, with the rest of the linear-model machinery (`solveWls`, `fitLinearModel`, `quadForm`, `choleskySolve`, `auxiliaryR2`) around it: 84.8% of all self time inside the grid bundle, against **14 ms total** in this demo's own files. Timed call by call on 7,094 days, the whole of it is two calls:
+
+| call | ms |
+| --- | --- |
+| `adf({ of: 'rate', orderBy: 'seq' })` | **6,898** |
+| `adf({ of: 'ret', orderBy: 'seq' })` | **6,789** |
+| `regressionModel(…)` with a 7,093-point band | 13 |
+| `acf(…, maxlag: 20)` ×2 | 13 |
+| `interval`, 5×`reduce`, `anomalies`, `correlation`, `spearman` | 22 |
+| building a headless grid over all 7,094 rows | 22 |
+
+It is the **lag search**, not the test. Holding n at 7,094 and varying only the cap:
+
+| `maxlag` | ms | chosen lag | statistic |
+| --- | --- | --- | --- |
+| (default) | **6,938** | 12 | −1.924 |
+| 12 | **361** | 12 | −1.924 |
+| 8 | 138 | 0 | −1.921 |
+| 4 | 63 | 0 | −1.921 |
+| 1 | 22 | 0 | −1.921 |
+
+**Nineteen times the work for the same chosen lag and the same statistic.** Left to its default the search runs to the Schwert rule — 34 candidates at this n — and refits each candidate from scratch rather than extending the previous cross-product, so the cost grows as roughly `maxlag² · n`. Across n it is badly super-linear: 500 days 69 ms, 1,000 → 221, 2,000 → 738, 4,000 → 2,565, 7,094 → 6,915, i.e. n×14 for ms×100. Wanted: the candidate fits sharing one cross-product updated a column at a time, which is the standard way to do this and turns the search from `maxlag²·n` into `maxlag·n`; failing that, the default cap documented next to the call, since nothing in the signature suggests that one call on a long series costs seven seconds.
+
+**What this demo does about it.** It passes `maxlag: 12`, which is a **documented parameter of the call** and not a workaround: declaring a maximum lag is what a reported ADF does anyway, and the cap belongs beside the statistic. The chosen lag is shown as a figure, and the page says when the cap *bound* — because a cap that bound is one that may have changed the answer. On this data it does not: capped and uncapped return the same lags (12 and 11) and the same statistics (−1.9235 and −24.2348) to four decimal places, and the two ADF calls together fall from **13,687 ms to 635 ms**.
+
 **F-FX-7 — eight chart types have no `chart.type.*` string, so their accessible name is a raw catalogue key.** The correlogram on this page announces itself to a screen reader as `chart.type.correlogram chart of` — the key, unresolved, followed by an empty subject. It is not one type: `EN_GB` carries 30 `chart.type.*` keys against the 38 in `TYPES`, and the eight missing are `forest`, `qq`, `ecdf`, `lorenz`, `correlogram`, `control`, `capability` and `movingRange` — which is to say **exactly the statistical family**, the one a statistics demo is made of. All 22 shipped locales are missing all eight, and the keys are not in `MESSAGE_KEYS` either, so nothing flags them as absent. Three charts on this page are affected: the correlogram, and the `qq` and `control` charts on the Statistics tab (`chart.type.qq chart of Log return`, `chart.type.control chart of Standard deviation`). Repro: `Object.keys(EN_GB).filter((k) => k.startsWith('chart.type.'))` has 30 entries; `EN_GB['chart.type.qq']` is `undefined`. Wanted: the eight strings added to every locale and to `MESSAGE_KEYS`, alongside the thirty that are already there. Separately, a correlogram has no single measure column, so "chart of" is left with nothing after it even once the key resolves — its name should say which columns it correlates.
 
 **F-FX-8 — a correlogram's row labels are drawn outside the plot and the margin never makes room for them.** `drawCorrelogram` writes each row label at `x: plot.left - 4` with `text-anchor: 'end'`, and nothing adds the label's width to `plot.left`. The left margin is whatever the generic axis code produced — a constant ~44px here, because a correlogram has no y tick values to measure — so every label wider than that runs off the left edge and is clipped. On this page the four labels are 83px wide against a 44px margin and lose their first characters: "SD return", "BP return", "PY return", "HF return". Measured three ways: with short titles (`A`, `B`, `C`, `D`, 8px) nothing is clipped; with this page's titles the overflow is 39px; with 146px titles it is 102px — and **the box width makes no difference at all**, 39px of overflow at both a 461px box and an 1,100px one. So a demo cannot fix this by giving the chart more room, and shortening the titles until they happened to fit would be hiding it. The page leaves it visible with a note. Wanted: the row labels measured and added to the left margin, as a y axis's tick labels already are.
+
+### How long the tab takes to open
+
+Measured the same way before and after, on the page's own clock — how long the Statistics tab click holds the main thread, at 1920x1200 in headless Chrome on the build box:
+
+| | main thread held | ScriptDuration for the click |
+| --- | --- | --- |
+| before | **12,333 ms** | 12.09 s |
+| after | **1,880 ms** | 1.41 s |
+
+The whole of the difference is F-FX-9 above: two `adf()` calls whose uncapped lag search cost 13.7 seconds between them and now cost 0.64. In the profile `normalEquations` falls from 7,984 ms (59.6% of all self time) to 282 ms (12.8%); the largest single cost left is `getBoundingClientRect` at 478 ms, which is the charts measuring their boxes. Nothing in this demo's own files reaches 10 ms in either profile.
 
 ## Running it
 
@@ -236,7 +272,7 @@ What is checked now:
 
 The line-placement lines are recorded as **known** rather than red, because the defect is the grid's (card 1344) and this demo is not working around it. They are still run and still printed, they name the card, and they are listed in the summary — and if one ever *passes*, it says so loudly, because that means the pin has moved and the known line should come out.
 
-Six of these fail on the column definition that shipped first. The count went from 383 to 460.
+Six of these fail on the column definition that shipped first. The count went from 383 to 444, plus ten known grid-defect lines.
 
 Every kernel convention the cross-check implements was pinned against the engine before it was written, and the comments say which: `stddev` divides by n−1, `skewness` and `kurtosis` are the sample-adjusted G1 and G2, `jarqueBera` uses the **population** moments rather than those adjusted ones, and the two quantile routes interpolate differently. The one thing not recomputed is the ADF **lag order**: choosing it is a policy — which criterion, over which sample, up to which cap — and re-implementing a policy proves nothing, so the engine's chosen lag is taken as given and the t-statistic at that lag is recomputed from scratch. It agrees to 1e-13.
 
