@@ -67,8 +67,8 @@ function rateColumns() {
        * Two earlier versions of this column were wrong, in instructive ways.
        * It began as `field: 'date'` with no type at all, which left the axis to
        * be inferred — and a grid built with `rows: []` infers `text` for an
-       * untyped column and never revisits it when the rows arrive (grid
-       * F-1344-3). It was then "fixed" to `type: 'date'` over the epoch field
+       * untyped column and never revisits it when the rows arrive. It was
+       * then "fixed" to `type: 'date'` over the epoch field
        * `t`, with a `format` of this file's own that assumed the value would be
        * a number. It is not: a `date` column's value is a `YYYY-MM-DD` string
        * whichever shape the field holds and whichever way the rows arrive. So
