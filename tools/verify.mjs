@@ -53,14 +53,6 @@ const all = args.includes('--all');
    a real disagreement. */
 const TOLERANCE = 1e-9;
 
-/*
- * The grid defect this demo is waiting on rather than working around: on
- * 1.62.1 the cartesian renderer's downsample step leaks the LTTB index into
- * each kept point's `x`, so a dense line paints off the left of the plot.
- * Fixed in 1.63; this demo picks it up when its pin moves.
- */
-const KNOWN_1344 = 'grid card 1344 (dense line paints off-plot on 1.62.1), fixed in 1.63';
-
 const CHROME_CANDIDATES = [
   process.env.CHROME_PATH,
   '/usr/bin/google-chrome',
@@ -110,7 +102,6 @@ function freePort() {
 
 const failures = [];
 const notes = [];
-const known = [];
 
 /** Record a check and its outcome. */
 function check(ok, description, detail) {
@@ -119,33 +110,6 @@ function check(ok, description, detail) {
   } else {
     failures.push(`${description}${detail ? ` (${detail})` : ''}`);
     notes.push(`  FAIL ${description}${detail ? ` (${detail})` : ''}`);
-  }
-}
-
-/**
- * A check whose failure is a defect in the grid this demo is pinned to, not in
- * this demo.
- *
- * It is still run, and it still prints what it measured, but a failure is
- * recorded as KNOWN rather than red — and a PASS is reported loudly, because
- * that means the grid has been fixed under us and the line should be taken out
- * along with whatever the demo was leaving alone for it.
- *
- * Nothing is silenced by default: every known line names the card it is waiting
- * on and is listed in the summary.
- *
- * @param {boolean} ok what was measured
- * @param {string} card the grid card this is waiting on
- * @param {string} description what was checked
- * @param {string} [detail] the measurement
- */
-function knownCheck(ok, card, description, detail) {
-  if (ok) {
-    notes.push(`  FIXED ${description}${detail ? ` (${detail})` : ''} — ${card} appears to be fixed; remove this known line`);
-    known.push({ card, description, fixed: true, detail });
-  } else {
-    notes.push(`  known ${description}${detail ? ` (${detail})` : ''} — ${card}`);
-    known.push({ card, description, fixed: false, detail });
   }
 }
 
@@ -589,46 +553,17 @@ try {
      * stacked on one coordinate off the left of the plot: the marks must be
      * INSIDE the plot and must have real width across it.
      */
-    /*
-     * WHERE the marks are. On 1.62.1 a dense line paints off-plot: the
-     * renderer's downsample step leaks the LTTB index into each kept point's
-     * `x`, so every point lands on one coordinate outside the plot rectangle.
-     * That is a grid defect and the demo is not working around it, so these two
-     * are KNOWN until the pin moves to 1.63 — still measured, still printed,
-     * and they shout if they start passing.
-     */
-    /* The 1344 symptom exactly: a line-family chart whose widest mark has no
-       width and sits off the left of the plot. Matched on the symptom rather
-       than on a row count, because the point count reported here is the
-       count AFTER the downsample that causes it. */
-    const dense = ['line', 'area', 'step'].includes(c.type)
-      && c.markW === 0 && c.markX != null && c.plotW != null && c.markX < 0;
-    if (dense) {
-      knownCheck(
-        c.intersects === true,
-        KNOWN_1344,
-        `saved copy: chart ${c.i} (${c.type}, ${c.points} points) drew its marks inside the plot`,
-        `mark ${c.markCls} at x ${c.markX} width ${c.markW}, plot width ${c.plotW}`,
-      );
-      knownCheck(
+    check(
+      c.intersects === true,
+      `saved copy: chart ${c.i} drew its marks inside the plot`,
+      `mark ${c.markCls} at x ${c.markX} width ${c.markW}, plot width ${c.plotW}`,
+    );
+    if (['line', 'area', 'step'].includes(c.type)) {
+      check(
         c.markW != null && c.plotW != null && c.markW >= c.plotW * 0.5,
-        KNOWN_1344,
         `saved copy: chart ${c.i} (${c.type}) spans the plot rather than collapsing to one x`,
         `mark width ${c.markW} against plot width ${c.plotW}`,
       );
-    } else {
-      check(
-        c.intersects === true,
-        `saved copy: chart ${c.i} drew its marks inside the plot`,
-        `mark ${c.markCls} at x ${c.markX} width ${c.markW}, plot width ${c.plotW}`,
-      );
-      if (['line', 'area', 'step'].includes(c.type)) {
-        check(
-          c.markW != null && c.plotW != null && c.markW >= c.plotW * 0.5,
-          `saved copy: chart ${c.i} (${c.type}) spans the plot rather than collapsing to one x`,
-          `mark width ${c.markW} against plot width ${c.plotW}`,
-        );
-      }
     }
     check(
       c.longestD >= REAL_GEOMETRY || c.dataMarks > 2 || c.canvas > 0,
@@ -763,32 +698,17 @@ try {
         `longest path d ${plot.longestD} chars, ${plot.dataMarks} data marks, ${plot.canvas} canvas`,
       );
       check(plot.emptyPaths === 0, `${tag}: plot ${i} left no empty path behind`, `${plot.emptyPaths} of ${plot.paths}`);
-      /*
-       * And inside the plot rather than stacked on one coordinate beside it.
-       * The two stationarity line charts are dense, so on 1.62.1 they land
-       * off-plot for the reason the chart-box check gives; they are KNOWN
-       * rather than red until the pin moves.
-       */
-      const denseLine = plot.markCls && /(^|\s)line(\s|$)/.test(plot.markCls) && plot.markW === 0;
-      if (denseLine) {
-        knownCheck(
-          false,
-          KNOWN_1344,
-          `${tag}: plot ${i} (a dense line) drew its marks inside the plot`,
-          `mark ${plot.markCls} at x ${plot.markX} width ${plot.markW}`,
-        );
-      } else {
-        check(
-          plot.intersects !== false,
-          `${tag}: plot ${i} drew its marks inside the plot`,
-          `mark ${plot.markCls} at x ${plot.markX} width ${plot.markW}`,
-        );
-        check(
-          plot.markW == null || plot.markW > 1,
-          `${tag}: plot ${i} did not collapse to a single x`,
-          `widest mark ${plot.markW}px`,
-        );
-      }
+      /* And inside the plot rather than stacked on one coordinate beside it. */
+      check(
+        plot.intersects !== false,
+        `${tag}: plot ${i} drew its marks inside the plot`,
+        `mark ${plot.markCls} at x ${plot.markX} width ${plot.markW}`,
+      );
+      check(
+        plot.markW == null || plot.markW > 1,
+        `${tag}: plot ${i} did not collapse to a single x`,
+        `widest mark ${plot.markW}px`,
+      );
     }
 
     /* -------- 1: the distribution -------- */
@@ -1109,20 +1029,9 @@ try {
 
 for (const note of notes) console.log(note);
 console.log('');
-if (known.length) {
-  const waiting = known.filter((k) => !k.fixed);
-  const fixed = known.filter((k) => k.fixed);
-  console.log(`${known.length} known grid defect check(s):`);
-  for (const k of waiting) console.log(`  known  ${k.description} — ${k.card}`);
-  for (const k of fixed) console.log(`  FIXED  ${k.description} — ${k.card}; remove this known line`);
-  console.log('');
-}
 if (failures.length) {
   console.log(`${failures.length} of ${notes.length} checks failed:`);
   for (const failure of failures) console.log(`  - ${failure}`);
   process.exit(1);
 }
-console.log(
-  `All ${notes.length - known.length} checks passed${all ? ' (including the live ones)' : ''}`
-  + (known.length ? `, plus ${known.length} known grid-defect line(s) waiting on 1.63.` : '.'),
-);
+console.log(`All ${notes.length} checks passed${all ? ' (including the live ones)' : ''}.`);

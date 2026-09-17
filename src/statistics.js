@@ -812,10 +812,6 @@ export function buildStatistics({
       return { ok: false, reason: 'no adf' };
     }
 
-    /* These two do not paint on 1.62.1 either, for the reason the note in
-       `src/dashboard.js` gives: the renderer's downsample step leaks the LTTB
-       index into each point's `x`, so a dense line lands off-plot. Grid card
-       1344, fixed in 1.63. Left as written rather than worked around. */
     chartInto(
       box.plot(220),
       {

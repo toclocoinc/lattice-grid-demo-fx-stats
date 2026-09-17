@@ -478,22 +478,6 @@ export function buildDashboard({
 
     const pair = pairOf(pairId);
 
-    /*
-     * These two line charts do not paint on grid 1.62.1, and they are left
-     * exactly as they should be written.
-     *
-     * The renderer's downsample step leaks the LTTB index into each kept
-     * point's `x`, so on a time scale every point lands on the same coordinate
-     * off the left of the plot — a fully formed path of several thousand
-     * characters, zero pixels wide, outside the plot rectangle. That is grid
-     * card 1344, fixed in 1.63; this demo picks the fix up when its pin moves
-     * to 1.63.
-     *
-     * An earlier revision of this file passed `downsample` large enough to stop
-     * the renderer reducing the points at all, which did make the line appear.
-     * That was a workaround for a grid defect in a public demo, which this
-     * track does not do, and it has been taken out again.
-     */
     const specs = [
       {
         type: 'line',
