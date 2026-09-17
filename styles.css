@@ -244,8 +244,22 @@ body {
  * The tabs module does not size or clip its panels — it ships no CSS for them
  * at all — so the clipping was entirely this file's: `flex: 1` with
  * `overflow: hidden`, which suits a grid that scrolls internally and cuts the
- * Statistics panel in half. The Rates tab keeps its own height from its grid
- * config (`height: 420`), so nothing here needs to force one.
+ * Statistics panel in half.
+ *
+ * `height: 420` in the Rates tab's grid config does NOT size its host —
+ * `GridConfig` has no top-level `height` field (checked against
+ * `lattice-grid.d.ts`), so that number is inert and always was. The grid
+ * fills whatever height its host element resolves to via ordinary CSS, the
+ * same as any other block content, so on a plain `display: flex; flex-direction:
+ * column` panel with no `flex`/`height` of its own it collapses to the few
+ * rows its content naturally reaches (the "5 rows painted" symptom).
+ *
+ * So the Rates panel gets an explicit height here, capped so a short window
+ * still leaves room for the tab strip and the page's header above it — and
+ * ONLY the Rates panel: the Statistics tab is a stack of cards, not a grid,
+ * and must stay free to grow to its content and page-scroll (that is what
+ * `125b49c1` fixed; giving `.tabs-host` or every `[role='tabpanel']` a height
+ * again would clip it a second time).
  */
 .tabs-host {
   background: var(--panel);
@@ -260,6 +274,16 @@ body {
   display: flex;
   flex-direction: column;
   min-width: 0;
+}
+
+.tabs-host [role='tabpanel'][data-tab-id='rates'] {
+  height: min(560px, calc(100vh - 220px));
+  min-height: 0;
+}
+
+.tabs-host [role='tabpanel'][data-tab-id='rates'] > * {
+  flex: 1;
+  min-height: 0;
 }
 
 /* Waiting and failure */

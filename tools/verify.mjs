@@ -464,6 +464,38 @@ try {
     'saved copy: twenty-seven years of rates build in a sensible time',
     `${snap.timings.buildMs} ms`,
   );
+
+  /*
+   * The Rates tab actually has a viewport to paint into.
+   *
+   * `125b49c1` un-clipped the Statistics panel by removing the CSS that gave
+   * the tab host its height, and the comment it left claimed the grid "keeps
+   * its own height from its grid config (height: 420)" — it does not:
+   * `GridConfig` has no top-level `height` field, so that number has never
+   * sized anything. Without a bounded ancestor the grid's `height: 100%`
+   * collapses to its content and it virtualises into a sliver, painting only
+   * a handful of rows even though `[role="row"]` count alone stays positive.
+   * This measures the actual painted viewport, not just that rows exist.
+   */
+  const ratesViewport = await evaluate(`(() => {
+    const vp = document.querySelector(
+      ".tabs-host [role='tabpanel'][data-tab-id='rates'] .lat-body-viewport",
+    );
+    return {
+      height: vp ? Math.round(vp.getBoundingClientRect().height) : 0,
+      rows: vp ? vp.querySelectorAll('[role="row"]').length : 0,
+    };
+  })()`);
+  check(
+    ratesViewport.height >= 400,
+    'saved copy: the Rates grid has a real, painted viewport height',
+    `${ratesViewport.height}px`,
+  );
+  check(
+    ratesViewport.rows >= 15,
+    'saved copy: the Rates grid paints more than a sliver of rows',
+    `${ratesViewport.rows} rows`,
+  );
   await shoot('rates');
 
   /* The charts must have plotted values, not empty axes. */
