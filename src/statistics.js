@@ -820,6 +820,10 @@ export function buildStatistics({
       return { ok: false, reason: 'no adf' };
     }
 
+    /* These two do not paint on 1.62.1 either, for the reason the note in
+       `src/dashboard.js` gives: the renderer's downsample step leaks the LTTB
+       index into each point's `x`, so a dense line lands off-plot. Grid card
+       1344, fixed in 1.63. Left as written rather than worked around. */
     chartInto(
       box.plot(220),
       {
@@ -830,7 +834,6 @@ export function buildStatistics({
         title: `${entry.label}: the rate itself`,
         axis: { x: { labels: false }, y: 'Rate' },
         legend: false,
-        canvas: true,
       },
       'The level',
     );
@@ -846,7 +849,6 @@ export function buildStatistics({
         axis: { x: { labels: false }, y: 'Log return' },
         reference: [{ value: 0 }],
         legend: false,
-        canvas: true,
       },
       'The return',
     );

@@ -60,30 +60,32 @@ function rateColumns() {
   const columns = [
     {
       /*
-       * A real date column, over the epoch-millisecond field.
+       * A declared date, over the 'YYYY-MM-DD' field — which is the shape a
+       * `date` column stores. `timestamp` is the type that keeps epoch
+       * milliseconds; `date` does not.
        *
-       * It was `field: 'date'` with no `type` — the 'YYYY-MM-DD' string — and
-       * that was a modelling mistake with a visible consequence: on this grid
-       * the charts module bound it as a CATEGORY axis of 7,094 distinct
-       * strings, and a `line` chart on a band scale that wide draws an empty
-       * path. Both line charts were blank on the published page. See finding
-       * F-FX-6, which is about the silence rather than the binding: a declared
-       * date is the right way to model a date whatever the chart does with it.
+       * Two earlier versions of this column were wrong, in instructive ways.
+       * It began as `field: 'date'` with no type at all, which left the axis to
+       * be inferred — and a grid built with `rows: []` infers `text` for an
+       * untyped column and never revisits it when the rows arrive (grid
+       * F-1344-3). It was then "fixed" to `type: 'date'` over the epoch field
+       * `t`, with a `format` of this file's own that assumed the value would be
+       * a number. It is not: a `date` column's value is a `YYYY-MM-DD` string
+       * whichever shape the field holds and whichever way the rows arrive. So
+       * the format returned an empty string and EVERY Date cell on the
+       * published page rendered blank. That was this file's bug, not the
+       * grid's.
        *
-       * The row keeps its `date` string as well — it is the row key, the
-       * anomaly label and the block boundary — so nothing else moves.
+       * The lesson is the boring one: declare the type, feed it the shape that
+       * type stores, and let the column format itself.
        */
       id: 'date',
-      field: 't',
-      title: 'Date',
+      field: 'date',
       type: 'date',
+      title: 'Date',
       width: 116,
       pinned: 'left',
       sort: 'desc',
-      format: (params) =>
-        typeof params.value === 'number' && Number.isFinite(params.value)
-          ? new Date(params.value).toISOString().slice(0, 10)
-          : '',
     },
   ];
   for (const pair of PAIRS) {
@@ -229,9 +231,14 @@ export function buildDashboard({
   const chartNote = el(
     'p',
     'chart-note',
-    'The correlogram’s row labels are clipped on the left: in 1.62.1 a correlogram places them ' +
-      'outside its plot area and never reserves room for them, so the margin does not grow with the ' +
-      'label. That is finding F-FX-8 in the README, left visible rather than worked around.',
+    'Two notes on these charts, both of them defects in the grid this demo is pinned to rather ' +
+      'than choices. On grid 1.62.1 a dense line paints off-plot — the renderer’s downsample ' +
+      'step leaks its index into each point’s x, so the whole line lands on one coordinate ' +
+      'outside the plot, fully drawn and invisible — which is why the two line charts above are ' +
+      'blank (grid card 1344, fixed in 1.63; the demo picks it up on the 1.63 pin). And the ' +
+      'correlogram’s row labels are clipped on the left, because a correlogram places them ' +
+      'outside its plot area and never reserves room for them, so a wider box does not help ' +
+      '(F-FX-8). Neither is worked around here.',
   );
   root.append(chartNote);
 
@@ -493,6 +500,23 @@ export function buildDashboard({
     for (const box of chartBoxes) box.textContent = '';
 
     const pair = pairOf(pairId);
+
+    /*
+     * These two line charts do not paint on grid 1.62.1, and they are left
+     * exactly as they should be written.
+     *
+     * The renderer's downsample step leaks the LTTB index into each kept
+     * point's `x`, so on a time scale every point lands on the same coordinate
+     * off the left of the plot — a fully formed path of several thousand
+     * characters, zero pixels wide, outside the plot rectangle. That is grid
+     * card 1344, fixed in 1.63; this demo picks the fix up when its pin moves
+     * to 1.63.
+     *
+     * An earlier revision of this file passed `downsample` large enough to stop
+     * the renderer reducing the points at all, which did make the line appear.
+     * That was a workaround for a grid defect in a public demo, which this
+     * track does not do, and it has been taken out again.
+     */
     const specs = [
       {
         type: 'line',
@@ -500,7 +524,6 @@ export function buildDashboard({
         y: pair.id,
         title: `${pair.label}, every publication day`,
         axis: { x: { labels: false }, y: pair.label },
-        canvas: true,
         legend: false,
       },
       {
@@ -510,7 +533,6 @@ export function buildDashboard({
         title: `${pair.label}: the daily return`,
         axis: { x: { labels: false }, y: 'Log return' },
         reference: [{ value: 0 }],
-        canvas: true,
         legend: false,
       },
       {
