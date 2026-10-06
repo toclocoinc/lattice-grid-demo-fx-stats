@@ -250,6 +250,17 @@ export function buildDashboard({
   const tabsHost = el('section', 'tabs-host');
   root.append(tabsHost);
 
+  /* ---------------- the credit line ---------------- */
+
+  const footer = el('footer', 'foot');
+  const footerLine = el('p', null, 'Built with ');
+  const footerLink = document.createElement('a');
+  footerLink.href = 'https://www.latticegrid.dev/statistics/';
+  footerLink.textContent = 'Lattice Grid';
+  footerLine.append(footerLink);
+  footer.append(footerLine);
+  root.append(footer);
+
   /* Set while the statistics panel is being mounted, so its first pass is not
      immediately followed by a second. */
   let statisticsJustBuilt = false;
