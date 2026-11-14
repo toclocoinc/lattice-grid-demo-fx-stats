@@ -1,9 +1,9 @@
 {
-  "fetchedAt": "2026-11-13T12:21:01.840Z",
-  "fetchedAtMs": 1794572461840,
+  "fetchedAt": "2026-11-14T11:36:02.688Z",
+  "fetchedAtMs": 1794656162688,
   "seconds": 1.6,
-  "bytes": 477860,
-  "days": 7135,
+  "bytes": 477928,
+  "days": 7136,
   "incompleteDays": 0,
   "base": "EUR",
   "symbols": [
@@ -13,7 +13,7 @@
     "USD"
   ],
   "oldest": "1999-01-04",
-  "newest": "2026-11-12",
+  "newest": "2026-11-13",
   "url": "https://api.frankfurter.dev/v1/1999-01-04..?base=EUR&symbols=USD,GBP,JPY,CHF",
   "source": "European Central Bank euro foreign exchange reference rates, served by Frankfurter",
   "sourceUrl": "https://frankfurter.dev",
